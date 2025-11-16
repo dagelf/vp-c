@@ -1,0 +1,14 @@
+# Build artifacts
+*.o
+vp
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# State files
+.vibeprocess/
+.config/vp/
