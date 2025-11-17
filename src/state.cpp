@@ -1,12 +1,10 @@
 #include "state.hpp"
 #include "resource.hpp"
-#include "json_simple.hpp"
 #include <fstream>
 #include <sys/stat.h>
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <pwd.h>
-#include <sstream>
 #include <iostream>
 
 namespace vp {
@@ -53,12 +51,60 @@ std::shared_ptr<State> State::load() {
         return state;
     }
 
-    std::string json((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
+    try {
+        json j;
+        file >> j;
 
-    // For simplicity, we'll skip JSON parsing in this minimal implementation
-    // In production, use nlohmann/json or similar
-    // state->fromJson(json);
+        // Load instances
+        if (j.contains("instances") && j["instances"].is_object()) {
+            for (auto& [key, value] : j["instances"].items()) {
+                auto inst = std::make_shared<Instance>();
+                *inst = value.get<Instance>();
+                state->instances[key] = inst;
+            }
+        }
+
+        // Load templates
+        if (j.contains("templates") && j["templates"].is_object()) {
+            for (auto& [key, value] : j["templates"].items()) {
+                auto tmpl = std::make_shared<Template>();
+                *tmpl = value.get<Template>();
+                state->templates[key] = tmpl;
+            }
+        }
+
+        // Load resources
+        if (j.contains("resources") && j["resources"].is_object()) {
+            for (auto& [key, value] : j["resources"].items()) {
+                auto res = std::make_shared<Resource>();
+                *res = value.get<Resource>();
+                state->resources[key] = res;
+            }
+        }
+
+        // Load counters
+        if (j.contains("counters") && j["counters"].is_object()) {
+            state->counters = j["counters"].get<std::map<std::string, int>>();
+        }
+
+        // Load types
+        if (j.contains("types") && j["types"].is_object()) {
+            for (auto& [key, value] : j["types"].items()) {
+                auto rt = std::make_shared<ResourceType>();
+                *rt = value.get<ResourceType>();
+                state->types[key] = rt;
+            }
+        }
+
+        // Load remotes_allowed
+        if (j.contains("remotes_allowed") && j["remotes_allowed"].is_object()) {
+            state->remotesAllowed = j["remotes_allowed"].get<std::map<std::string, bool>>();
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing state file: " << e.what() << std::endl;
+        // Return default state on parse error
+    }
 
     return state;
 }
@@ -73,41 +119,69 @@ bool State::save() {
 
     std::string stateFile = getStateFilePath();
 
-    // Generate JSON (simplified - use proper library in production)
-    std::string json = toJson();
+    try {
+        json j;
 
-    std::ofstream file(stateFile);
-    if (!file.is_open()) {
+        // Serialize instances
+        json instances_json = json::object();
+        for (const auto& [key, value] : instances) {
+            instances_json[key] = *value;
+        }
+        j["instances"] = instances_json;
+
+        // Serialize templates
+        json templates_json = json::object();
+        for (const auto& [key, value] : templates) {
+            templates_json[key] = *value;
+        }
+        j["templates"] = templates_json;
+
+        // Serialize resources
+        json resources_json = json::object();
+        for (const auto& [key, value] : resources) {
+            resources_json[key] = *value;
+        }
+        j["resources"] = resources_json;
+
+        // Serialize counters
+        j["counters"] = counters;
+
+        // Serialize types
+        json types_json = json::object();
+        for (const auto& [key, value] : types) {
+            types_json[key] = *value;
+        }
+        j["types"] = types_json;
+
+        // Serialize remotes_allowed
+        j["remotes_allowed"] = remotesAllowed;
+
+        // Write to file
+        std::ofstream file(stateFile);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        file << j.dump(2);  // Pretty print with 2-space indent
+        file.close();
+
+        chmod(stateFile.c_str(), 0600);
+
+        return true;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error saving state: " << e.what() << std::endl;
         return false;
     }
-
-    file << json;
-    file.close();
-
-    chmod(stateFile.c_str(), 0600);
-
-    return true;
 }
 
 std::string State::toJson() const {
-    // Simplified JSON serialization
-    // In production, use nlohmann/json or similar
-    std::ostringstream oss;
-    oss << "{\n";
-    oss << "  \"instances\": {},\n";
-    oss << "  \"templates\": {},\n";
-    oss << "  \"resources\": {},\n";
-    oss << "  \"counters\": " << json::toJson(counters) << ",\n";
-    oss << "  \"types\": {},\n";
-    oss << "  \"remotes_allowed\": " << json::toJson(remotesAllowed) << "\n";
-    oss << "}\n";
-    return oss.str();
+    // This method is now deprecated in favor of direct JSON serialization in save()
+    return "{}";
 }
 
-bool State::fromJson(const std::string& json) {
-    // Simplified JSON parsing
-    // In production, use nlohmann/json or similar
-    (void)json; // Suppress unused warning
+bool State::fromJson(const std::string& /*json_str*/) {
+    // This method is now deprecated in favor of direct JSON parsing in load()
     return true;
 }
 

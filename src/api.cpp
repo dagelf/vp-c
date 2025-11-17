@@ -1,6 +1,6 @@
 #include "api.hpp"
 #include "process.hpp"
-#include "json_simple.hpp"
+#include "types.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -51,20 +51,36 @@ std::string handleRequest(const std::string& method, const std::string& path, co
     if (path == "/api/instances" && method == "GET") {
         matchAndUpdateInstances(g_state);
 
+        // Serialize instances to JSON
+        json instances_json = json::object();
+        for (const auto& [key, value] : g_state->instances) {
+            instances_json[key] = *value;
+        }
+        std::string body = instances_json.dump(2);
+
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: application/json\r\n";
         response << "Access-Control-Allow-Origin: *\r\n";
+        response << "Content-Length: " << body.length() << "\r\n";
         response << "\r\n";
-        response << "{}"; // Simplified - would serialize instances here
+        response << body;
         return response.str();
     }
 
     if (path == "/api/templates" && method == "GET") {
+        // Serialize templates to JSON
+        json templates_json = json::object();
+        for (const auto& [key, value] : g_state->templates) {
+            templates_json[key] = *value;
+        }
+        std::string body = templates_json.dump(2);
+
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: application/json\r\n";
         response << "Access-Control-Allow-Origin: *\r\n";
+        response << "Content-Length: " << body.length() << "\r\n";
         response << "\r\n";
-        response << "{}"; // Simplified
+        response << body;
         return response.str();
     }
 
