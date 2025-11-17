@@ -2,8 +2,10 @@
 #include "process.hpp"
 #include "resource.hpp"
 #include "api.hpp"
+#include "types.hpp"
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -222,6 +224,120 @@ void handleServe(const std::vector<std::string>& args) {
     }
 }
 
+void handleTemplate(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "Usage: vp template <list|add|show>\n";
+        exit(1);
+    }
+
+    std::string subcmd = args[0];
+
+    if (subcmd == "list") {
+        std::cout << std::left << std::setw(20) << "ID" << "LABEL\n";
+        for (const auto& [id, tmpl] : state->templates) {
+            std::cout << std::left << std::setw(20) << id << tmpl->label << "\n";
+        }
+    } else if (subcmd == "add") {
+        if (args.size() < 2) {
+            std::cerr << "Usage: vp template add <file.json>\n";
+            exit(1);
+        }
+
+        std::string filename = args[1];
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Error: Cannot open file: " << filename << "\n";
+            exit(1);
+        }
+
+        try {
+            json j;
+            file >> j;
+
+            auto tmpl = std::make_shared<Template>();
+            *tmpl = j.get<Template>();
+
+            state->templates[tmpl->id] = tmpl;
+            state->save();
+
+            std::cout << "Added template: " << tmpl->id << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing template: " << e.what() << "\n";
+            exit(1);
+        }
+    } else if (subcmd == "show") {
+        if (args.size() < 2) {
+            std::cerr << "Usage: vp template show <id>\n";
+            exit(1);
+        }
+
+        std::string id = args[1];
+        auto it = state->templates.find(id);
+        if (it == state->templates.end()) {
+            std::cerr << "Template not found: " << id << "\n";
+            exit(1);
+        }
+
+        json j = *it->second;
+        std::cout << j.dump(2) << "\n";
+    } else {
+        std::cerr << "Unknown template command: " << subcmd << "\n";
+        exit(1);
+    }
+}
+
+void handleResourceType(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "Usage: vp resource-type <list|add>\n";
+        exit(1);
+    }
+
+    std::string subcmd = args[0];
+
+    if (subcmd == "list") {
+        std::cout << std::left
+                  << std::setw(15) << "NAME"
+                  << std::setw(10) << "COUNTER"
+                  << "CHECK\n";
+        for (const auto& [name, rt] : state->types) {
+            std::cout << std::left
+                      << std::setw(15) << name
+                      << std::setw(10) << (rt->counter ? "true" : "false")
+                      << rt->check << "\n";
+        }
+    } else if (subcmd == "add") {
+        if (args.size() < 2) {
+            std::cerr << "Usage: vp resource-type add <name> --check=<cmd> [--counter] [--start=N] [--end=N]\n";
+            exit(1);
+        }
+
+        std::string name = args[1];
+        auto vars = parseVars(std::vector<std::string>(args.begin() + 2, args.end()));
+
+        auto rt = std::make_shared<ResourceType>();
+        rt->name = name;
+        rt->check = vars.find("check") != vars.end() ? vars["check"] : "";
+        rt->counter = vars.find("counter") != vars.end();
+        rt->start = 0;
+        rt->end = 0;
+
+        if (vars.find("start") != vars.end()) {
+            rt->start = std::stoi(vars["start"]);
+        }
+        if (vars.find("end") != vars.end()) {
+            rt->end = std::stoi(vars["end"]);
+        }
+
+        state->types[name] = rt;
+        state->save();
+
+        std::cout << "Added resource type: " << name << "\n";
+    } else {
+        std::cerr << "Unknown resource-type command: " << subcmd << "\n";
+        exit(1);
+    }
+}
+
 void printUsage() {
     std::cerr << "Usage: vp <command> [args...]\n";
     std::cerr << "Commands:\n";
@@ -231,6 +347,8 @@ void printUsage() {
     std::cerr << "  delete <name>                              - Delete a process instance\n";
     std::cerr << "  ps                                         - List all instances\n";
     std::cerr << "  serve [port]                               - Start web UI (default: 8080)\n";
+    std::cerr << "  template <list|add|show>                   - Manage templates\n";
+    std::cerr << "  resource-type <list|add>                   - Manage resource types\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -260,6 +378,10 @@ int main(int argc, char* argv[]) {
         listInstances();
     } else if (cmd == "serve") {
         handleServe(args);
+    } else if (cmd == "template") {
+        handleTemplate(args);
+    } else if (cmd == "resource-type") {
+        handleResourceType(args);
     } else {
         std::cerr << "Unknown command: " << cmd << "\n";
         printUsage();
