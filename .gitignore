@@ -1,6 +1,7 @@
 # Build artifacts
 *.o
 vp
+vp_test
 build/
 
 # IDE files
