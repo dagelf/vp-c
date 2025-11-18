@@ -11,6 +11,7 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <dirent.h>
 
 namespace vp {
 
@@ -376,10 +377,76 @@ std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> 
 }
 
 std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool portsOnly) {
-    (void)state;
-    (void)portsOnly;
-    // TODO: Implement process discovery
-    return {};
+    std::vector<std::map<std::string, std::string>> result;
+
+    // Read all PIDs from /proc
+    DIR* procDir = opendir("/proc");
+    if (!procDir) {
+        return result;
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(procDir)) != nullptr) {
+        // Check if entry is a PID (numeric)
+        int pid = atoi(entry->d_name);
+        if (pid <= 0) {
+            continue;
+        }
+
+        // Skip if already monitored
+        bool alreadyMonitored = false;
+        for (const auto& [name, inst] : state->instances) {
+            if (inst->pid == pid) {
+                alreadyMonitored = true;
+                break;
+            }
+        }
+        if (alreadyMonitored) {
+            continue;
+        }
+
+        // Read process info
+        auto procInfo = readProcessInfo(pid);
+        if (!procInfo) {
+            continue; // Skip processes we can't read
+        }
+
+        // Skip kernel threads
+        if (isKernelThread(pid, procInfo->cmdline)) {
+            continue;
+        }
+
+        // If portsOnly, skip processes not listening on ports
+        if (portsOnly && procInfo->ports.empty()) {
+            continue;
+        }
+
+        // Build result entry
+        std::map<std::string, std::string> procMap;
+        procMap["pid"] = std::to_string(procInfo->pid);
+        procMap["ppid"] = std::to_string(procInfo->ppid);
+        procMap["name"] = procInfo->name;
+        procMap["command"] = procInfo->cmdline;
+        procMap["cwd"] = procInfo->cwd;
+        procMap["exe"] = procInfo->exe;
+
+        // Add ports as comma-separated string
+        if (!procInfo->ports.empty()) {
+            std::ostringstream portStream;
+            for (size_t i = 0; i < procInfo->ports.size(); ++i) {
+                if (i > 0) portStream << ",";
+                portStream << procInfo->ports[i];
+            }
+            procMap["ports"] = portStream.str();
+        } else {
+            procMap["ports"] = "";
+        }
+
+        result.push_back(procMap);
+    }
+
+    closedir(procDir);
+    return result;
 }
 
 bool matchAndUpdateInstances(std::shared_ptr<State> state) {

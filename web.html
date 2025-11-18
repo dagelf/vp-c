@@ -132,7 +132,6 @@
             padding: 4px 8px;
             font-size: 12px;
         }
-<<<<<<< HEAD
         button.stale {
             opacity: 0.5;
             cursor: not-allowed;
@@ -140,10 +139,7 @@
         button.stale:hover {
             background: inherit;
         }
-        button.action-add {
-=======
         button.action {
->>>>>>> claude/fix-api-routing-01DgHum3vZmN2K4Bk8HF5NfC
             background: #007bff;
             color: white;
             border-color: #007bff;
@@ -160,7 +156,6 @@
         button.action-start:hover {
             background: #40c057;
         }
-<<<<<<< HEAD
         button.action-lightning {
             background: #007bff;
             color: white;
@@ -170,9 +165,6 @@
         button.action-lightning:hover {
             background: #0056b3;
         }
-=======
->>>>>>> claude/fix-api-routing-01DgHum3vZmN2K4Bk8HF5NfC
-
         .card {
             background: white;
             padding: 20px;
@@ -575,30 +567,17 @@
                 const staleClass = isDataStale ? ' stale' : '';
 
                 if (i.status === 'running') {
-<<<<<<< HEAD
                     actions.push(`<button class="small action-stop${staleClass}" onclick="stopInstance('${i.name}')">Stop</button>`);
-=======
-                    actions.push(`<button class="small action-start" onclick="stopInstance('${i.name}')">Stop</button>`);
->>>>>>> claude/fix-api-routing-01DgHum3vZmN2K4Bk8HF5NfC
                 } else if (i.status === 'stopped') {
                     actions.push(`<button class="small action-start${staleClass}" onclick="restartInstance('${i.name}')">Start</button>`);
                 }
 
-<<<<<<< HEAD
                 actions.push(`<button class="small action-add${staleClass}" onclick="addAsTemplate('${i.name}')">+</button>`);
                 actions.push(`<button class="small action-remove${staleClass}" onclick="deleteInstance('${i.name}')">-</button>`);
 
                 // Add lightning button if action is defined
                 if (i.action) {
                     actions.push(`<button class="small action-lightning${staleClass}" onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}')">⚡</button>`);
-=======
-                actions.push(`<button class="small action" onclick="addAsTemplate('${i.name}')">+</button>`);
-                actions.push(`<button class="small action" onclick="deleteInstance('${i.name}')">-</button>`);
-
-                // Add lightning button if action is defined
-                if (i.action) {
-                    actions.push(`<button class="small action" onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}')" >⚡</button>`);
->>>>>>> claude/fix-api-routing-01DgHum3vZmN2K4Bk8HF5NfC
                 }
                 // Add 'stale' class to running status when data is stale
                 const statusClass = i.status === 'running' && isDataStale ? `${i.status} stale` : i.status;
