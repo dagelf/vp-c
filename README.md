@@ -2,6 +2,12 @@
 
 **Process orchestration with zero assumptions**
 
+<img width="1344" height="475" alt="Screenshot 2025-11-19 at 06-05-32 Vibe Processmanager" src="https://github.com/user-attachments/assets/391a83b6-ca98-4689-a3ef-975f7d39a8a4" />
+
+<img width="1344" height="565" alt="Screenshot 2025-11-19 at 06-06-55 Vibe Processmanager" src="https://github.com/user-attachments/assets/45da5ff3-b9bf-4846-96fe-f4faf2e16f43" />
+
+_Built this as a test run for Claude Code on the Web, and to see how good it is at converting go into c++._ _Use at your own peril, not audited yet. _
+
 Visual Processmanager is an ultra-lean and ultra-flexible process manager built on a radical philosophy: make **zero assumptions** about what resources are or how they work. Everything is user-defined through simple shell commands or great Web UX.
 
 ## Philosophy
