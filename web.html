@@ -323,7 +323,7 @@
 
     <div class="tabs">
         <button class="tab active" onclick="showTab('instances', event)">Managed</button>
-        <button class="tab" onclick="showTab('discover', event)">Discovery</button>
+        <button class="tab" onclick="showTab('discover', event)">All</button>
         <button class="tab" onclick="showTab('templates', event)">Templates</button>
         <button class="tab" onclick="showTab('resources', event)">Resources</button>
         <button class="tab" onclick="showTab('types', event)">Resource Types</button>
@@ -373,14 +373,29 @@
     <!-- Discovery Tab -->
     <div id="discover-tab" class="tab-content">
         <div class="card" style="margin-bottom: 20px;">
-            <h3>Discovery Options</h3>
-            <div style="margin: 15px 0;">
-                <button class="primary" onclick="discoverProcesses()">Discover Processes</button>
-                <div class="freshness-indicator" style="margin-left: 20px;">
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <button class="primary" onclick="discoverProcesses()">Refresh</button>
+
+                <div class="refresh-control" style="margin-left: 0;">
+                    <label style="display: inline-flex; align-items: center; margin-right: 5px;">
+                        <input type="checkbox" id="discover-auto-refresh-enable"
+                            style="width: auto; margin-right: 5px;">
+                        Auto-refresh:
+                    </label>
+                    <input type="number" id="discover-refresh-interval" value="1" min="0" max="60" step="0.5">
+                    <span>seconds</span>
+                    <label style="margin-left: 15px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="discover-background-check" style="width: auto; margin-right: 5px;">
+                        Check in background
+                    </label>
+                </div>
+
+                <div class="freshness-indicator">
                     <span class="freshness-dot unknown" id="discovery-freshness-dot"></span>
                     <span id="discovery-freshness-text">Not discovered</span>
                 </div>
             </div>
+
             <div style="margin: 15px 0;">
                 <label style="display: inline-flex; align-items: center; margin-right: 20px;">
                     <input type="checkbox" id="filter-ports-only" onchange="applyDiscoveryFilters()"
@@ -460,6 +475,7 @@
         let resources = {};
         let types = {};
         let refreshIntervalId = null;
+        let discoverRefreshIntervalId = null;
         let freshnessIntervalId = null;
         let lastInstancesHTML = '';
         let sortColumn = 'name';
@@ -514,6 +530,22 @@
             }
         }
 
+        // Initialize discovery refresh interval
+        function updateDiscoveryRefreshInterval() {
+            const interval = parseFloat(document.getElementById('discover-refresh-interval').value);
+            const backgroundCheck = document.getElementById('discover-background-check').checked;
+            const autoRefreshEnabled = document.getElementById('discover-auto-refresh-enable').checked;
+
+            if (discoverRefreshIntervalId) {
+                clearInterval(discoverRefreshIntervalId);
+                discoverRefreshIntervalId = null;
+            }
+
+            if (autoRefreshEnabled && interval > 0 && (backgroundCheck || isPageVisible)) {
+                discoverRefreshIntervalId = setInterval(discoverProcesses, interval * 1000);
+            }
+        }
+
         // Update freshness indicators
         function updateFreshnessIndicators() {
             const now = Date.now();
@@ -546,19 +578,21 @@
                 const ageSeconds = (now - lastDiscoveryUpdate) / 1000;
                 const dot = document.getElementById('discovery-freshness-dot');
                 const text = document.getElementById('discovery-freshness-text');
+                const refreshInterval = parseFloat(document.getElementById('discover-refresh-interval').value);
 
-                if (ageSeconds < 10) {
+                // Dynamic thresholds based on refresh interval
+                const greenThreshold = refreshInterval + 2;
+                const yellowThreshold = refreshInterval + 5;
+
+                if (ageSeconds < greenThreshold) {
                     dot.className = 'freshness-dot fresh';
                     text.textContent = `Fresh (${ageSeconds.toFixed(1)}s ago)`;
-                } else if (ageSeconds < 30) {
+                } else if (ageSeconds < yellowThreshold) {
                     dot.className = 'freshness-dot stale';
-                    text.textContent = `${ageSeconds.toFixed(0)}s ago`;
-                } else if (ageSeconds < 300) {
-                    dot.className = 'freshness-dot old';
-                    text.textContent = `${Math.floor(ageSeconds / 60)}m ${Math.floor(ageSeconds % 60)}s ago`;
+                    text.textContent = `${ageSeconds.toFixed(1)}s ago`;
                 } else {
                     dot.className = 'freshness-dot old';
-                    text.textContent = `${Math.floor(ageSeconds / 60)}m ago (stale)`;
+                    text.textContent = `${Math.floor(ageSeconds / 60)}m ${Math.floor(ageSeconds % 60)}s ago`;
                 }
             }
         }
@@ -570,6 +604,12 @@
             document.getElementById('auto-refresh-enable').addEventListener('change', updateRefreshInterval);
             updateRefreshInterval();
 
+            // Discovery tab listeners
+            document.getElementById('discover-refresh-interval').addEventListener('change', updateDiscoveryRefreshInterval);
+            document.getElementById('discover-background-check').addEventListener('change', updateDiscoveryRefreshInterval);
+            document.getElementById('discover-auto-refresh-enable').addEventListener('change', updateDiscoveryRefreshInterval);
+            updateDiscoveryRefreshInterval();
+
             // Start freshness indicator updates
             freshnessIntervalId = setInterval(updateFreshnessIndicators, 1000);
             // Check for staleness every second
@@ -579,10 +619,16 @@
             document.addEventListener('visibilitychange', () => {
                 isPageVisible = !document.hidden;
                 updateRefreshInterval();
+                updateDiscoveryRefreshInterval();
 
                 // If page became visible and auto-refresh is enabled, immediately refresh
-                if (isPageVisible && parseFloat(document.getElementById('refresh-interval').value) > 0) {
-                    loadInstances();
+                if (isPageVisible) {
+                    if (document.getElementById('auto-refresh-enable').checked && parseFloat(document.getElementById('refresh-interval').value) > 0) {
+                        loadInstances();
+                    }
+                    if (document.getElementById('discover-auto-refresh-enable').checked && parseFloat(document.getElementById('discover-refresh-interval').value) > 0) {
+                        discoverProcesses();
+                    }
                 }
             });
         });
