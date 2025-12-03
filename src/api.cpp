@@ -2,6 +2,7 @@
 #include "process.hpp"
 #include "resource.hpp"
 #include "types.hpp"
+#include "web_html.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -14,7 +15,7 @@
 
 namespace vp {
 
-// Helper to read file contents
+// Helper to read file contents (fallback for development)
 std::string readFile(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -40,12 +41,18 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         return response.str();
     }
 
-    // Serve web.html from file
+    // Serve web.html (embedded or from file for development)
     if (path == "/" && method == "GET") {
-        std::string html = readFile("web.html");
+        std::string html;
+
+        // Try to read from file first (for development/hot-reload)
+        html = readFile("web.html");
+
+        // Fall back to embedded version
         if (html.empty()) {
-            html = "<html><body><h1>VP Process Manager</h1><p>Error: web.html not found</p></body></html>";
+            html = EMBEDDED_WEB_HTML;
         }
+
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: text/html\r\n";
         response << "Content-Length: " << html.length() << "\r\n";

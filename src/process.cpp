@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iostream>
 #include <dirent.h>
+#include <fstream>
 
 namespace vp {
 
@@ -379,6 +380,9 @@ std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> 
 std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool portsOnly) {
     std::vector<std::map<std::string, std::string>> result;
 
+    // Build port map ONCE for all processes (major optimization)
+    auto portMap = buildPortToProcessMap();
+
     // Read all PIDs from /proc
     DIR* procDir = opendir("/proc");
     if (!procDir) {
@@ -405,37 +409,97 @@ std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_pt
             continue;
         }
 
-        // Read process info
-        auto procInfo = readProcessInfo(pid);
-        if (!procInfo) {
-            continue; // Skip processes we can't read
+        // Read basic process info WITHOUT ports (avoid repeated port lookups)
+        std::string procDir_path = "/proc/" + std::to_string(pid);
+
+        // Read stat file for name and ppid
+        std::string statPath = procDir_path + "/stat";
+        std::ifstream statFile(statPath);
+        if (!statFile.is_open()) continue;
+
+        std::string statLine;
+        std::getline(statFile, statLine);
+
+        std::string name, cmdline;
+        int ppid = 0;
+
+        // Parse stat file
+        size_t lastParen = statLine.rfind(')');
+        if (lastParen != std::string::npos) {
+            size_t firstParen = statLine.find('(');
+            if (firstParen != std::string::npos && lastParen > firstParen) {
+                name = statLine.substr(firstParen + 1, lastParen - firstParen - 1);
+            }
+            std::istringstream iss(statLine.substr(lastParen + 1));
+            std::string state;
+            iss >> state >> ppid;
+        }
+
+        // Read cmdline
+        std::string cmdlinePath = procDir_path + "/cmdline";
+        std::ifstream cmdlineFile(cmdlinePath);
+        if (cmdlineFile.is_open()) {
+            std::getline(cmdlineFile, cmdline, '\0');
+            for (char& c : cmdline) {
+                if (c == '\0') c = ' ';
+            }
+            cmdline.erase(cmdline.find_last_not_of(" \t\n\r") + 1);
         }
 
         // Skip kernel threads
-        if (isKernelThread(pid, procInfo->cmdline)) {
+        if (isKernelThread(pid, cmdline)) {
             continue;
         }
 
+        // Look up ports from pre-built map
+        std::vector<int> ports;
+        for (const auto& [port, pids] : portMap) {
+            for (int p : pids) {
+                if (p == pid) {
+                    ports.push_back(port);
+                    break;
+                }
+            }
+        }
+
         // If portsOnly, skip processes not listening on ports
-        if (portsOnly && procInfo->ports.empty()) {
+        if (portsOnly && ports.empty()) {
             continue;
+        }
+
+        // Read exe and cwd only for non-kernel threads
+        std::string exe, cwd;
+        std::string exePath = procDir_path + "/exe";
+        char exeBuf[PATH_MAX];
+        ssize_t len = readlink(exePath.c_str(), exeBuf, sizeof(exeBuf) - 1);
+        if (len != -1) {
+            exeBuf[len] = '\0';
+            exe = exeBuf;
+        }
+
+        std::string cwdPath = procDir_path + "/cwd";
+        char cwdBuf[PATH_MAX];
+        len = readlink(cwdPath.c_str(), cwdBuf, sizeof(cwdBuf) - 1);
+        if (len != -1) {
+            cwdBuf[len] = '\0';
+            cwd = cwdBuf;
         }
 
         // Build result entry
         std::map<std::string, std::string> procMap;
-        procMap["pid"] = std::to_string(procInfo->pid);
-        procMap["ppid"] = std::to_string(procInfo->ppid);
-        procMap["name"] = procInfo->name;
-        procMap["command"] = procInfo->cmdline;
-        procMap["cwd"] = procInfo->cwd;
-        procMap["exe"] = procInfo->exe;
+        procMap["pid"] = std::to_string(pid);
+        procMap["ppid"] = std::to_string(ppid);
+        procMap["name"] = name;
+        procMap["command"] = cmdline;
+        procMap["cwd"] = cwd;
+        procMap["exe"] = exe;
 
         // Add ports as comma-separated string
-        if (!procInfo->ports.empty()) {
+        if (!ports.empty()) {
             std::ostringstream portStream;
-            for (size_t i = 0; i < procInfo->ports.size(); ++i) {
+            for (size_t i = 0; i < ports.size(); ++i) {
                 if (i > 0) portStream << ",";
-                portStream << procInfo->ports[i];
+                portStream << ports[i];
             }
             procMap["ports"] = portStream.str();
         } else {

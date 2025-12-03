@@ -5,6 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pthread")
 
+# Generate embedded web.html header
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/web_html.hpp
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/embed_web.sh
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web.html
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Embedding web.html into source"
+)
+
 # Source files
 set(SOURCES
     src/main.cpp
@@ -23,6 +32,7 @@ set(HEADERS
     src/resource.hpp
     src/procutil.hpp
     src/api.hpp
+    src/web_html.hpp
 )
 
 # Executable
