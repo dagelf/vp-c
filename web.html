@@ -36,7 +36,6 @@
             --bg: #09090b;
             --fg: #fafafa;
             --card: #18181b;
-            /* Slightly lighter than bg */
             --card-fg: #fafafa;
             --primary: #fafafa;
             --primary-fg: #18181b;
@@ -141,7 +140,7 @@
             width: 100%;
         }
 
-        /* Grid - Increased min-width to prevent overlap */
+        /* Grid */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
@@ -296,8 +295,6 @@
             color: var(--muted-fg);
         }
 
-        /* Grey for stale */
-
         .input {
             height: 2.25rem;
             padding: 0 0.75rem;
@@ -362,7 +359,6 @@
             background: var(--warning-text);
         }
 
-        /* Config Editor specific */
         #config-editor {
             background-color: var(--editor-bg);
             color: var(--fg);
@@ -370,7 +366,20 @@
             line-height: 1.5;
         }
 
-        /* Scrollbar */
+        #filter-badge {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 50;
+            background: var(--primary);
+            color: var(--primary-fg);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -389,6 +398,8 @@
 </head>
 
 <body>
+    <div id="filter-badge">Filter: <span id="filter-text"></span></div>
+
     <header>
         <div class="flex items-center gap-2 flex-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -418,11 +429,12 @@
 
     <main class="flex-1 flex flex-col p-6 overflow-hidden">
         <div class="mb-6 flex justify-center">
-            <div class="tab-nav" style="width: 100%; max-width: 600px;">
+            <div class="tab-nav" style="width: 100%; max-width: 700px;">
                 <button onclick="setTab('instances')" class="tab-btn active" data-tab="instances">Instances</button>
                 <button onclick="setTab('discover')" class="tab-btn" data-tab="discover">Processes</button>
                 <button onclick="setTab('templates')" class="tab-btn" data-tab="templates">Templates</button>
                 <button onclick="setTab('resources')" class="tab-btn" data-tab="resources">Resources</button>
+                <button onclick="setTab('types')" class="tab-btn" data-tab="types">Types</button>
                 <button onclick="setTab('config')" class="tab-btn" data-tab="config">Config</button>
             </div>
         </div>
@@ -461,6 +473,9 @@
                     <label class="flex items-center gap-2 text-sm cursor-pointer">
                         <input type="checkbox" id="filter-ports" onchange="renderDiscovery()"> Ports Only
                     </label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-toplevel" onchange="renderDiscovery()"> Top-Level Only
+                    </label>
                     <button onclick="discoverProcesses()" class="btn btn-outline btn-sm">Scan</button>
                 </div>
             </div>
@@ -485,6 +500,15 @@
             <div id="list-resources" class="grid"></div>
         </div>
 
+        <!-- Resource Types -->
+        <div id="tab-types" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Resource Types</h2>
+                <button onclick="addResourceType()" class="btn btn-outline btn-sm">Add Type</button>
+            </div>
+            <div id="list-types" class="grid"></div>
+        </div>
+
         <!-- Config -->
         <div id="tab-config" class="tab-pane hidden flex-1 flex flex-col overflow-hidden">
             <div class="flex justify-between items-center mb-4">
@@ -507,7 +531,6 @@
         const View = {
             instanceCard: (i, isStale) => {
                 const running = i.status === 'running';
-                // If stale and running, show grey. Otherwise show standard colors.
                 let badge = 'badge-neutral';
                 if (running) badge = isStale ? 'badge-stale' : 'badge-success';
                 else if (i.status === 'error') badge = 'badge-error';
@@ -524,6 +547,7 @@
                         `<button onclick="apiAction('stop', '${i.name}')" class="btn btn-outline btn-icon" title="Stop">■</button>` :
                         `<button onclick="apiAction('restart', '${i.name}')" class="btn btn-outline btn-icon" title="Start">▶</button>`
                     }
+                            <button onclick="addAsTemplate('${i.name}')" class="btn btn-outline btn-icon" title="Save as Template">+</button>
                             <button onclick="apiAction('delete', '${i.name}')" class="btn btn-outline btn-icon text-error-text" title="Delete">✕</button>
                             ${i.action ? `<button onclick="window.open('${i.action}')" class="btn btn-primary btn-icon">↗</button>` : ''}
                         </div>
@@ -544,7 +568,7 @@
             discoveryCard: (p) => `
                 <div class="card">
                     <div class="card-header">
-                        <span class="font-semibold truncate">${p.name || 'Unknown'}</span>
+                        <span class="font-semibold truncate">${p.name || 'Unknown'}${p.isTopLevel ? ' 🔝' : ''}</span>
                         <button onclick="monitorProcess(${p.pid}, '${escape(p.command)}')" class="btn btn-primary btn-sm">Add</button>
                     </div>
                     <div class="card-body text-sm">
@@ -575,6 +599,16 @@
                     </div>
                 </div>`,
 
+            typeCard: (t) => `
+                <div class="card">
+                    <div class="card-header"><span class="font-semibold">${t.name}</span></div>
+                    <div class="card-body">
+                        <div class="mb-2"><span class="text-muted">Check:</span> <span class="code-block" style="display:inline;padding:0.2rem">${t.check || '-'}</span></div>
+                        <div class="mb-2"><span class="text-muted">Counter:</span> ${t.counter ? 'Yes' : 'No'}</div>
+                        ${t.counter ? `<div><span class="text-muted">Range:</span> ${t.start} - ${t.end}</div>` : ''}
+                    </div>
+                </div>`,
+
             empty: (msg) => `<div class="p-4 text-center text-muted">${msg}</div>`
         };
 
@@ -583,12 +617,58 @@
             instances: {},
             templates: {},
             resources: {},
+            types: {},
             discovery: [],
             lastUpdate: { instances: 0, discover: 0 },
-            activeTab: 'instances'
+            activeTab: 'instances',
+            filter: ''
         };
 
         // --- Controller / Logic ---
+
+        // Universal Filtering
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+            if (e.key === 'Escape') {
+                state.filter = '';
+            } else if (e.key === 'Backspace') {
+                state.filter = state.filter.slice(0, -1);
+            } else if (e.key.length === 1) {
+                state.filter += e.key;
+            } else {
+                return;
+            }
+
+            updateFilterUI();
+            rerenderCurrentTab();
+        });
+
+        function updateFilterUI() {
+            const badge = document.getElementById('filter-badge');
+            const text = document.getElementById('filter-text');
+            if (state.filter) {
+                badge.style.display = 'block';
+                text.textContent = state.filter;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function rerenderCurrentTab() {
+            if (state.activeTab === 'instances') renderInstances();
+            else if (state.activeTab === 'discover') renderDiscovery();
+            else if (state.activeTab === 'templates') renderTemplates();
+            else if (state.activeTab === 'resources') renderResources();
+            else if (state.activeTab === 'types') renderTypes();
+        }
+
+        function filterItems(items, key = 'name') {
+            if (!state.filter) return items;
+            const q = state.filter.toLowerCase();
+            return items.filter(i => (i[key] || '').toLowerCase().includes(q));
+        }
 
         // Theme
         function toggleTheme() {
@@ -613,10 +693,15 @@
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
 
+            // Clear filter on tab change? User said "universally on all pages", so maybe keep it?
+            // "universally on all pages with cards" implies the filter persists.
+            rerenderCurrentTab();
+
             if (tab === 'instances') loadInstances();
             else if (tab === 'discover') discoverProcesses();
             else if (tab === 'templates') loadTemplates();
             else if (tab === 'resources') loadResources();
+            else if (tab === 'types') loadResourceTypes();
             else if (tab === 'config') loadConfig();
         }
 
@@ -646,6 +731,35 @@
         async function discoverProcesses() {
             const data = await fetchAPI('/api/discover');
             if (data) {
+                // Process Tree Logic
+                const shells = ['bash', 'zsh', 'sh', 'fish', 'dash', 'ksh', 'tcsh', 'csh'];
+                const processMap = {};
+                const childrenMap = {};
+
+                data.forEach(p => {
+                    processMap[p.pid] = p;
+                    p.isTopLevel = false;
+                    p.allPorts = new Set(p.ports || []);
+                    if (!childrenMap[p.ppid]) childrenMap[p.ppid] = [];
+                    childrenMap[p.ppid].push(p);
+                });
+
+                data.forEach(p => {
+                    const parent = processMap[p.ppid];
+                    if (parent && shells.includes(parent.name)) {
+                        p.isTopLevel = true;
+                        // Aggregate ports
+                        const agg = (proc) => {
+                            (childrenMap[proc.pid] || []).forEach(child => {
+                                (child.ports || []).forEach(port => p.allPorts.add(port));
+                                agg(child);
+                            });
+                        };
+                        agg(p);
+                        p.ports = Array.from(p.allPorts);
+                    }
+                });
+
                 state.discovery = data;
                 state.lastUpdate.discover = Date.now();
                 renderDiscovery();
@@ -659,8 +773,12 @@
 
         async function loadResources() {
             state.resources = await fetchAPI('/api/resources') || {};
-            state.types = await fetchAPI('/api/resource-types') || {};
             renderResources();
+        }
+
+        async function loadResourceTypes() {
+            state.types = await fetchAPI('/api/resource-types') || {};
+            renderTypes();
         }
 
         async function loadConfig() {
@@ -692,7 +810,9 @@
             const age = Date.now() - state.lastUpdate.instances;
             const isStale = age > 6000;
 
-            const items = Object.values(state.instances);
+            let items = Object.values(state.instances);
+            items = filterItems(items, 'name');
+
             if (items.length === 0) list.innerHTML = View.empty('No instances');
             else list.innerHTML = items.map(i => View.instanceCard(i, isStale)).join('');
         }
@@ -700,24 +820,48 @@
         function renderDiscovery() {
             const list = document.getElementById('list-discover');
             const portsOnly = document.getElementById('filter-ports').checked;
-            const items = state.discovery.filter(p => !portsOnly || (p.ports && p.ports.length));
+            const topLevelOnly = document.getElementById('filter-toplevel').checked;
+
+            let items = state.discovery.filter(p => {
+                if (portsOnly && (!p.ports || p.ports.length === 0)) return false;
+                if (topLevelOnly && !p.isTopLevel) return false;
+                return true;
+            });
+            items = filterItems(items, 'name');
 
             if (items.length === 0) list.innerHTML = View.empty('No processes found');
             else list.innerHTML = items.map(p => View.discoveryCard(p)).join('');
         }
 
         function renderTemplates() {
-            const items = Object.values(state.templates);
+            let items = Object.values(state.templates);
+            items = filterItems(items, 'id'); // Filter by ID/Label
             const list = document.getElementById('list-templates');
             if (items.length === 0) list.innerHTML = View.empty('No templates');
             else list.innerHTML = items.map(t => View.templateCard(t)).join('');
         }
 
         function renderResources() {
-            const items = Object.entries(state.resources);
+            // Resources are grouped by type, filtering is tricky. 
+            // We'll filter the inner items.
             const list = document.getElementById('list-resources');
-            if (items.length === 0) list.innerHTML = View.empty('No resources');
-            else list.innerHTML = items.map(([t, l]) => View.resourceCard(t, l)).join('');
+            const q = state.filter.toLowerCase();
+
+            const html = Object.entries(state.resources).map(([type, l]) => {
+                const filteredList = state.filter ? l.filter(r => r.value.toLowerCase().includes(q)) : l;
+                if (filteredList.length === 0) return '';
+                return View.resourceCard(type, filteredList);
+            }).join('');
+
+            list.innerHTML = html || View.empty('No resources');
+        }
+
+        function renderTypes() {
+            let items = Object.values(state.types);
+            items = filterItems(items, 'name');
+            const list = document.getElementById('list-types');
+            if (items.length === 0) list.innerHTML = View.empty('No types');
+            else list.innerHTML = items.map(t => View.typeCard(t)).join('');
         }
 
         // Actions
@@ -743,8 +887,25 @@
             }
 
             await fetchAPI('/api/instances', 'POST', { action: 'start', template: id, name, vars });
-            await loadInstances(); // Explicit refresh
+            await loadInstances();
             setTab('instances');
+        }
+
+        async function addAsTemplate(name) {
+            const i = state.instances[name];
+            if (!i) return;
+            const id = prompt('Template ID:', i.name + '-template');
+            if (!id) return;
+
+            const t = {
+                id,
+                label: 'Template from ' + i.name,
+                command: i.command,
+                resources: Object.keys(i.resources || {}),
+                vars: i.vars || {}
+            };
+            await fetchAPI('/api/templates', 'POST', t);
+            loadTemplates();
         }
 
         async function monitorProcess(pid, cmd) {
@@ -763,7 +924,15 @@
 
         function addResourceType() {
             const name = prompt('Type Name:');
-            if (name) fetchAPI('/api/resource-types', 'POST', { name }).then(loadResources);
+            if (!name) return;
+            const check = prompt('Check command (optional):');
+            const counter = confirm('Is counter?');
+            let start = 0, end = 0;
+            if (counter) {
+                start = parseInt(prompt('Start:')) || 0;
+                end = parseInt(prompt('End:')) || 0;
+            }
+            fetchAPI('/api/resource-types', 'POST', { name, check, counter, start, end }).then(loadResourceTypes);
         }
 
         // Utils
@@ -792,7 +961,7 @@
                     elText.textContent = 'Not loaded';
                 } else {
                     const age = (now - last) / 1000;
-                    if (age < 6) { // Match stale threshold
+                    if (age < 6) {
                         elDot.className = 'status-dot live';
                         elText.textContent = `Live (${age.toFixed(0)}s)`;
                     } else {
@@ -802,11 +971,13 @@
                 }
             });
 
-            // Re-render instances to update stale badges if needed
             if (state.activeTab === 'instances' && state.lastUpdate.instances > 0) {
-                const age = now - state.lastUpdate.instances;
-                // Only re-render if we cross the stale threshold to avoid flickering
-                // Or just re-render every second? Re-rendering is cheap here.
+                // Re-render for stale badge update
+                // Only if we are crossing the boundary? 
+                // For simplicity, we can re-render if we haven't typed a filter recently?
+                // Actually, re-rendering every second is fine for this app size.
+                if (!state.filter) renderInstances(); // Avoid interrupting typing? No, typing is handled by keydown.
+                // But re-rendering might lose focus or selection? We don't have inputs in cards.
                 renderInstances();
             }
 
