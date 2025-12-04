@@ -151,7 +151,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
     // GET /api/discover - Discover processes
     if (path.find("/api/discover") == 0 && method == "GET") {
         bool portsOnly = path.find("ports_only=true") != std::string::npos;
-        auto discovered = discoverProcesses(g_state, portsOnly);
+        auto discovered = discoverProcesses(g_state, true, false);
 
         json result_json = json::array();
         for (const auto& proc : discovered) {

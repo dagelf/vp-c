@@ -377,11 +377,14 @@ std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> 
     return inst;
 }
 
-std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool portsOnly) {
+std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly) {
     std::vector<std::map<std::string, std::string>> result;
 
     // Build port map ONCE for all processes (major optimization)
-    auto portMap = buildPortToProcessMap();
+    std::map<int, std::vector<int>> portMap;
+    if (includePorts) {
+        portMap = buildPortToProcessMap();
+    }
 
     // Read all PIDs from /proc
     DIR* procDir = opendir("/proc");
@@ -451,13 +454,15 @@ std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_pt
             continue;
         }
 
-        // Look up ports from pre-built map
         std::vector<int> ports;
-        for (const auto& [port, pids] : portMap) {
-            for (int p : pids) {
-                if (p == pid) {
-                    ports.push_back(port);
-                    break;
+        if (includePorts) {
+            // Look up ports from pre-built map
+            for (const auto& [port, pids] : portMap) {
+                for (int p : pids) {
+                    if (p == pid) {
+                        ports.push_back(port);
+                        break;
+                    }
                 }
             }
         }
@@ -528,6 +533,63 @@ bool matchAndUpdateInstances(std::shared_ptr<State> state) {
                 inst->status = "stopped";
                 inst->pid = 0;
                 inst->cpu_time = 0;
+            }
+        }
+    }
+
+    // Check if any stopped instances are actually running
+    // We do this by discovering all processes (without ports first) and matching
+    auto processes = discoverProcesses(state, false, false);
+
+    for (auto& kv : state->instances) {
+        auto& inst = kv.second;
+
+        if (inst->status == "stopped") {
+            std::string instCmdName = extractProcessName(inst->command);
+            std::string instCwd = inst->cwd;
+            if (instCwd.empty() && inst->resources.count("workdir")) {
+                instCwd = inst->resources["workdir"];
+            }
+
+            for (const auto& proc : processes) {
+                // Match by command name (executable name)
+                std::string procName = proc.at("name");
+                std::string procExe = proc.at("exe");
+                std::string procCmdName = extractProcessName(procExe);
+                if (procCmdName.empty()) procCmdName = procName;
+
+                // Simple match: if process name matches instance command name
+                // Note: instCmdName might be "node", procName might be "node"
+                if (instCmdName == procName || instCmdName == procCmdName) {
+                    // Match by CWD
+                    if (!instCwd.empty() && instCwd == proc.at("cwd")) {
+                        // Potential match found. Check ports if applicable.
+                        bool match = true;
+                        int pid = std::stoi(proc.at("pid"));
+
+                        // Check all port resources
+                        for (const auto& res : inst->resources) {
+                            if (res.first.find("port") != std::string::npos) {
+                                try {
+                                    int port = std::stoi(res.second);
+                                    if (!isProcessListeningOnPort(pid, port)) {
+                                        match = false;
+                                        break;
+                                    }
+                                } catch (...) {
+                                    // Ignore invalid port values
+                                }
+                            }
+                        }
+
+                        if (match) {
+                            inst->status = "running";
+                            inst->pid = pid;
+                            inst->managed = true; // We found it, so we assume we can manage it (or at least monitor it)
+                            break; // Stop looking for this instance
+                        }
+                    }
+                }
             }
         }
     }

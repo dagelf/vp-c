@@ -338,4 +338,81 @@ std::shared_ptr<ProcessInfo> discoverProcessOnPort(int port) {
     return discoverProcess(pids[0]);
 }
 
+long getInodeForPort(int port) {
+    const char* tcpFiles[] = {"/proc/net/tcp", "/proc/net/tcp6"};
+
+    for (const char* tcpFile : tcpFiles) {
+        std::ifstream file(tcpFile);
+        if (!file.is_open()) continue;
+
+        std::string line;
+        std::getline(file, line); // Skip header
+
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::vector<std::string> fields;
+            std::string field;
+            while (iss >> field) {
+                fields.push_back(field);
+            }
+
+            if (fields.size() < 10) continue;
+
+            // Field 3 is connection state (0A = LISTEN)
+            if (fields[3] != "0A") continue;
+
+            // Parse port from local_address (IP:PORT in hex)
+            std::string localAddr = fields[1];
+            size_t colonPos = localAddr.find(':');
+            if (colonPos == std::string::npos) continue;
+
+            std::string portHex = localAddr.substr(colonPos + 1);
+            int portNum = std::stoi(portHex, nullptr, 16);
+
+            if (portNum == port) {
+                return std::stol(fields[9]);
+            }
+        }
+    }
+
+    return -1;
+}
+
+bool isProcessListeningOnPort(int pid, int port) {
+    long targetInode = getInodeForPort(port);
+    if (targetInode == -1) return false;
+
+    std::string fdDir = "/proc/" + std::to_string(pid) + "/fd";
+    DIR* dir = opendir(fdDir.c_str());
+    if (!dir) return false;
+
+    struct dirent* entry;
+    bool found = false;
+
+    while ((entry = readdir(dir)) != nullptr) {
+        if (entry->d_name[0] == '.') continue;
+
+        std::string fdPath = fdDir + "/" + entry->d_name;
+        char link[256];
+        ssize_t len = readlink(fdPath.c_str(), link, sizeof(link) - 1);
+        if (len == -1) continue;
+        link[len] = '\0';
+
+        std::string linkStr(link);
+        if (linkStr.find("socket:[") == 0) {
+            std::string inodeStr = linkStr.substr(8);
+            inodeStr = inodeStr.substr(0, inodeStr.length() - 1);
+            long inode = std::stol(inodeStr);
+
+            if (inode == targetInode) {
+                found = true;
+                break;
+            }
+        }
+    }
+
+    closedir(dir);
+    return found;
+}
+
 } // namespace vp

@@ -36,7 +36,7 @@ std::shared_ptr<Instance> discoverAndImportProcess(std::shared_ptr<State> state,
 std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> state, int port, const std::string& name);
 
 // Discover all running processes
-std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool portsOnly);
+std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly);
 
 // Match and update instances with running processes
 bool matchAndUpdateInstances(std::shared_ptr<State> state);

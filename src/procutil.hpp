@@ -38,6 +38,12 @@ std::shared_ptr<ProcessInfo> discoverProcess(int pid);
 // Discover process on a port
 std::shared_ptr<ProcessInfo> discoverProcessOnPort(int port);
 
+// Get inode for a specific port
+long getInodeForPort(int port);
+
+// Check if a process is listening on a specific port
+bool isProcessListeningOnPort(int pid, int port);
+
 // Check if a process is a kernel thread
 bool isKernelThread(int pid, const std::string& cmdline);
 
