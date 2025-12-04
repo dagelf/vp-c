@@ -4,472 +4,801 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual Processmanager</title>
+    <title>Vibecoding Process Manager</title>
     <style>
+        :root {
+            --background: #ffffff;
+            --foreground: #09090b;
+            --card: #ffffff;
+            --card-foreground: #09090b;
+            --popover: #ffffff;
+            --popover-foreground: #09090b;
+            --primary: #18181b;
+            --primary-foreground: #fafafa;
+            --secondary: #f4f4f5;
+            --secondary-foreground: #18181b;
+            --muted: #f4f4f5;
+            --muted-foreground: #71717a;
+            --accent: #f4f4f5;
+            --accent-foreground: #18181b;
+            --destructive: #ef4444;
+            --destructive-foreground: #fafafa;
+            --border: #e4e4e7;
+            --input: #e4e4e7;
+            --ring: #18181b;
+            --radius: 0.5rem;
+
+            /* Status Colors */
+            --success-bg: #dcfce7;
+            --success-text: #15803d;
+            --warning-bg: #fef9c3;
+            --warning-text: #a16207;
+            --error-bg: #fee2e2;
+            --error-text: #b91c1c;
+            --neutral-bg: #f4f4f5;
+            --neutral-text: #52525b;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #09090b;
+                --foreground: #fafafa;
+                --card: #09090b;
+                --card-foreground: #fafafa;
+                --popover: #09090b;
+                --popover-foreground: #fafafa;
+                --primary: #fafafa;
+                --primary-foreground: #18181b;
+                --secondary: #27272a;
+                --secondary-foreground: #fafafa;
+                --muted: #27272a;
+                --muted-foreground: #a1a1aa;
+                --accent: #27272a;
+                --accent-foreground: #fafafa;
+                --destructive: #7f1d1d;
+                --destructive-foreground: #fafafa;
+                --border: #27272a;
+                --input: #27272a;
+                --ring: #d4d4d8;
+
+                --success-bg: #052e16;
+                --success-text: #4ade80;
+                --warning-bg: #422006;
+                --warning-text: #facc15;
+                --error-bg: #450a0a;
+                --error-text: #f87171;
+                --neutral-bg: #27272a;
+                --neutral-text: #a1a1aa;
+            }
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
+            border-width: 0;
+            border-style: solid;
+            border-color: var(--border);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
-        h1 {
-            margin-bottom: 10px;
-        }
-
-        h2 {
-            margin-top: 30px;
-            margin-bottom: 15px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .tabs {
+        /* Layout Utilities */
+        .flex {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #ddd;
         }
 
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 16px;
+        .flex-col {
+            flex-direction: column;
         }
 
-        .tab.active {
-            border-bottom: 3px solid #007bff;
-            font-weight: 600;
+        .items-center {
+            align-items: center;
         }
 
-        .tab-content {
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .justify-center {
+            justify-content: center;
+        }
+
+        .justify-end {
+            justify-content: flex-end;
+        }
+
+        .flex-1 {
+            flex: 1 1 0%;
+        }
+
+        .gap-1 {
+            gap: 0.25rem;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .gap-4 {
+            gap: 1rem;
+        }
+
+        .p-6 {
+            padding: 1.5rem;
+        }
+
+        .px-6 {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        .py-2 {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+
+        .mr-2 {
+            margin-right: 0.5rem;
+        }
+
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .h-full {
+            height: 100%;
+        }
+
+        .hidden {
             display: none;
         }
 
-        .tab-content.active {
+        .block {
             display: block;
         }
 
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 20px;
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 1rem;
         }
 
-        .refresh-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-left: auto;
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
-        .refresh-control label {
-            font-size: 14px;
-            color: #666;
+        @media (min-width: 1024px) {
+            .grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
         }
 
-        .refresh-control input[type="number"] {
-            width: 60px;
-            padding: 6px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        /* Typography */
+        h1,
+        h2,
+        h3,
+        p {
+            margin: 0;
         }
 
-        table {
+        .text-2xl {
+            font-size: 1.5rem;
+            line-height: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .text-lg {
+            font-size: 1.125rem;
+            line-height: 1.75rem;
+            font-weight: 600;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        .text-xs {
+            font-size: 0.75rem;
+            line-height: 1rem;
+        }
+
+        .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .font-medium {
+            font-weight: 500;
+        }
+
+        .font-semibold {
+            font-weight: 600;
+        }
+
+        .text-muted-foreground {
+            color: var(--muted-foreground);
+        }
+
+        .text-destructive {
+            color: var(--destructive);
+        }
+
+        /* Components */
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
             width: 100%;
-            background: white;
-            border-collapse: collapse;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-bottom-width: 1px;
+            background-color: var(--background);
+            opacity: 0.95;
+            backdrop-filter: blur(4px);
         }
 
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
+        .header-content {
+            display: flex;
+            height: 3.5rem;
+            align-items: center;
+            padding: 0 1.5rem;
         }
 
-        th {
-            background: #333;
-            color: white;
-            font-weight: 600;
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            height: 2.25rem;
+            padding: 0 1rem;
+            transition: colors 0.2s;
             cursor: pointer;
-            user-select: none;
+            border-width: 1px;
+            border-color: transparent;
+            text-decoration: none;
         }
 
-        th:hover {
-            background: #444;
-        }
-
-        th.sortable::after {
-            content: ' ⇅';
-            opacity: 0.3;
-        }
-
-        th.sort-asc::after {
-            content: ' ↑';
-            opacity: 1;
-        }
-
-        th.sort-desc::after {
-            content: ' ↓';
-            opacity: 1;
-        }
-
-        tr:hover {
-            background: #f9f9f9;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status.running {
-            background: #28a745;
-            color: white;
-        }
-
-        .status.running.stale {
-            background: #adb5bd;
-            color: white;
-        }
-
-        .status.stopped {
-            background: #6c757d;
-            color: white;
-        }
-
-        .status.starting {
-            background: #ffc107;
-            color: black;
-        }
-
-        .status.error {
-            background: #dc3545;
-            color: white;
-        }
-
-        button {
-            padding: 8px 16px;
-            margin: 2px;
-            cursor: pointer;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        button:hover {
-            background: #f0f0f0;
-        }
-
-        button.primary {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-
-        button.primary:hover {
-            background: #0056b3;
-        }
-
-        button.small {
-            padding: 4px 8px;
-            font-size: 12px;
-        }
-
-        button.stale {
+        .btn:disabled {
             opacity: 0.5;
-            cursor: not-allowed;
+            pointer-events: none;
         }
 
-        button.stale:hover {
-            background: inherit;
+        .btn:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
         }
 
-        button.action {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-            font-size: 12px;
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--primary-foreground);
         }
 
-        button.action:hover {
-            background: #0056b3;
+        .btn-primary:hover {
+            opacity: 0.9;
         }
 
-        button.action-start {
-            background: #51cf66;
-            color: white;
-            border-color: #51cf66;
+        .btn-outline {
+            border-color: var(--input);
+            background-color: var(--background);
+            color: var(--foreground);
         }
 
-        button.action-start:hover {
-            background: #40c057;
+        .btn-outline:hover {
+            background-color: var(--accent);
+            color: var(--accent-foreground);
         }
 
-        button.action-lightning {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-            font-size: 16px;
+        .btn-ghost {
+            background-color: transparent;
+            color: var(--foreground);
         }
 
-        button.action-lightning:hover {
-            background: #0056b3;
+        .btn-ghost:hover {
+            background-color: var(--accent);
+            color: var(--accent-foreground);
         }
 
+        .btn-destructive {
+            color: var(--destructive);
+            background-color: var(--background);
+            border-color: var(--input);
+        }
+
+        .btn-destructive:hover {
+            background-color: var(--destructive);
+            color: var(--destructive-foreground);
+            border-color: var(--destructive);
+        }
+
+        .btn-icon {
+            height: 2rem;
+            width: 2rem;
+            padding: 0;
+        }
+
+        /* Cards */
         .card {
-            background: white;
-            padding: 20px;
-            margin: 10px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 0.75rem;
+            border-width: 1px;
+            background-color: var(--card);
+            color: var(--card-foreground);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: box-shadow 0.2s;
         }
 
-        .form-group {
-            margin-bottom: 15px;
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
-        label {
-            display: block;
-            margin-bottom: 5px;
+        .card-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            padding: 1.5rem;
+            padding-bottom: 0.75rem;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            padding-top: 0;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 9999px;
+            border-width: 1px;
+            padding: 0.125rem 0.625rem;
+            font-size: 0.75rem;
             font-weight: 600;
+            transition: colors 0.2s;
+            border-color: transparent;
         }
 
-        input,
-        textarea {
+        .badge-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .badge-warning {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+        }
+
+        .badge-error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        .badge-neutral {
+            background-color: var(--neutral-bg);
+            color: var(--neutral-text);
+        }
+
+        /* Tabs */
+        .tab-nav {
+            display: inline-flex;
+            height: 2.5rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            background-color: var(--muted);
+            padding: 0.25rem;
+            color: var(--muted-foreground);
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            max-width: 48rem;
         }
 
-        .code {
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            border-radius: calc(var(--radius) - 2px);
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: inherit;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            flex: 1;
+            transition: all 0.2s;
+        }
+
+        .tab-btn[data-state="active"] {
+            background-color: var(--background);
+            color: var(--foreground);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        /* Inputs */
+        .input {
+            display: flex;
+            height: 2.25rem;
+            width: 100%;
+            border-radius: var(--radius);
+            border-width: 1px;
+            border-color: var(--input);
+            background-color: var(--background);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--foreground);
+        }
+
+        .input:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+        }
+
+        .label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .checkbox {
+            height: 1rem;
+            width: 1rem;
+            border-radius: 0.25rem;
+            border-width: 1px;
+            border-color: var(--primary);
+        }
+
+        /* Code Block */
+        .code-block {
+            margin-top: 0.25rem;
+            border-radius: var(--radius);
+            background-color: var(--muted);
+            padding: 0.5rem;
             font-family: monospace;
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 13px;
-        }
-
-        .resource-type {
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .actions {
+            font-size: 0.75rem;
+            overflow-x: auto;
             white-space: nowrap;
         }
 
-        .freshness-indicator {
-            display: inline-flex;
+        .code-block::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .code-block::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .code-block::-webkit-scrollbar-thumb {
+            background-color: var(--muted-foreground);
+            opacity: 0.3;
+            border-radius: 3px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #666;
-            margin-left: 15px;
+            justify-content: center;
+            border-radius: var(--radius);
+            border-width: 1px;
+            border-style: dashed;
+            padding: 2rem;
+            text-align: center;
         }
 
-        .freshness-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
+        .empty-icon {
+            display: flex;
+            height: 3rem;
+            width: 3rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background-color: var(--muted);
+            margin-bottom: 1rem;
         }
 
-        .freshness-dot.fresh {
-            background: #51cf66;
-            box-shadow: 0 0 4px rgba(81, 207, 102, 0.6);
+        /* Status Dot */
+        .status-dot {
+            height: 0.5rem;
+            width: 0.5rem;
+            border-radius: 9999px;
+            background-color: var(--muted-foreground);
         }
 
-        .freshness-dot.stale {
-            background: #ffd43b;
-            box-shadow: 0 0 4px rgba(255, 212, 59, 0.6);
+        .status-dot.fresh {
+            background-color: var(--success-text);
+            box-shadow: 0 0 4px var(--success-text);
         }
 
-        .freshness-dot.old {
-            background: #ff6b6b;
-            box-shadow: 0 0 4px rgba(255, 107, 107, 0.6);
-        }
-
-        .freshness-dot.unknown {
-            background: #adb5bd;
+        .status-dot.stale {
+            background-color: var(--warning-text);
         }
     </style>
 </head>
 
 <body>
-    <h1>Visual Processmanager</h1>
-    <p class="subtitle">Process orchestration with zero assumptions</p>
-
-    <div class="tabs">
-        <button class="tab active" onclick="showTab('instances', event)">Managed</button>
-        <button class="tab" onclick="showTab('discover', event)">All</button>
-        <button class="tab" onclick="showTab('templates', event)">Templates</button>
-        <button class="tab" onclick="showTab('resources', event)">Resources</button>
-        <button class="tab" onclick="showTab('types', event)">Resource Types</button>
-        <button class="tab" onclick="showTab('config', event)">Configuration</button>
-    </div>
-
-    <!-- Instances Tab -->
-    <div id="instances-tab" class="tab-content active">
-        <div class="toolbar">
-            <button class="primary" onclick="showStartForm()">+ Start Instance</button>
-            <button class="primary" onclick="loadInstances()">↻ Refresh</button>
-
-            <div class="freshness-indicator">
-                <span class="freshness-dot unknown" id="instances-freshness-dot"></span>
-                <span id="instances-freshness-text">Not loaded</span>
+    <header>
+        <div class="header-content">
+            <div class="flex items-center gap-2 mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="color: var(--primary);">
+                    <path d="M12 19h8"></path>
+                    <path d="m4 17 6-6-6-6"></path>
+                </svg>
+                <span class="text-lg">Vibecoding Process Manager</span>
             </div>
-
-            <div class="refresh-control">
-                <label style="display: inline-flex; align-items: center; margin-right: 5px;">
-                    <input type="checkbox" id="auto-refresh-enable" checked style="width: auto; margin-right: 5px;">
-                    Auto-refresh:
-                </label>
-                <input type="number" id="refresh-interval" value="1" min="0" max="60" step="0.5">
-                <span>seconds</span>
-                <label style="margin-left: 15px; display: inline-flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="background-check" style="width: auto; margin-right: 5px;">
-                    Check in background
-                </label>
+            <div class="flex-1 flex justify-end">
+                <button onclick="showStartForm()" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path d="M5 12h14"></path>
+                        <path d="M12 5v14"></path>
+                    </svg>
+                    New Instance
+                </button>
             </div>
         </div>
-        <table id="instances-table">
-            <thead>
-                <tr>
-                    <th class="sortable" data-sort="name">Name</th>
-                    <th class="sortable" data-sort="status">Status</th>
-                    <th class="sortable" data-sort="pid">PID</th>
-                    <th class="sortable" data-sort="cputime">CPU Time</th>
-                    <th class="sortable" data-sort="command">Command</th>
-                    <th>Resources</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="instances-list"></tbody>
-        </table>
-    </div>
+    </header>
 
-    <!-- Discovery Tab -->
-    <div id="discover-tab" class="tab-content">
-        <div class="card" style="margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                <button class="primary" onclick="discoverProcesses()">Refresh</button>
+    <main class="p-6">
+        <!-- Tabs Navigation -->
+        <div class="mb-6">
+            <div class="tab-nav">
+                <button onclick="showTab('instances', event)" class="tab-btn" data-state="active" data-tab="instances">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path
+                            d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2">
+                        </path>
+                    </svg>
+                    Instances
+                </button>
+                <button onclick="showTab('discover', event)" class="tab-btn" data-state="inactive" data-tab="discover">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="4" />
+                        <line x1="21.17" x2="12" y1="8" y2="8" />
+                        <line x1="3.95" x2="8.54" y1="6.06" y2="14" />
+                        <line x1="10.88" x2="15.46" y1="21.94" y2="14" />
+                    </svg>
+                    All Processes
+                </button>
+                <button onclick="showTab('templates', event)" class="tab-btn" data-state="inactive"
+                    data-tab="templates">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    Templates
+                </button>
+                <button onclick="showTab('resources', event)" class="tab-btn" data-state="inactive"
+                    data-tab="resources">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <rect width="20" height="14" x="2" y="3" rx="2" />
+                        <line x1="8" x2="16" y1="21" y2="21" />
+                        <line x1="12" x2="12" y1="17" y2="21" />
+                    </svg>
+                    Resources
+                </button>
+                <button onclick="showTab('config', event)" class="tab-btn" data-state="inactive" data-tab="config">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path
+                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Config
+                </button>
+            </div>
+        </div>
 
-                <div class="refresh-control" style="margin-left: 0;">
-                    <label style="display: inline-flex; align-items: center; margin-right: 5px;">
-                        <input type="checkbox" id="discover-auto-refresh-enable"
-                            style="width: auto; margin-right: 5px;">
-                        Auto-refresh:
-                    </label>
-                    <input type="number" id="discover-refresh-interval" value="1" min="0" max="60" step="0.5">
-                    <span>seconds</span>
-                    <label style="margin-left: 15px; display: inline-flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="discover-background-check" style="width: auto; margin-right: 5px;">
-                        Check in background
-                    </label>
+        <!-- Instances Tab -->
+        <div id="instances-tab" class="tab-content block">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-2xl">Managed Instances</h2>
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span id="instances-freshness-dot" class="status-dot"></span>
+                        <span id="instances-freshness-text">Not loaded</span>
+                    </div>
                 </div>
-
-                <div class="freshness-indicator">
-                    <span class="freshness-dot unknown" id="discovery-freshness-dot"></span>
-                    <span id="discovery-freshness-text">Not discovered</span>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 text-sm">
+                        <label class="label">
+                            <input type="checkbox" id="auto-refresh-enable" checked class="checkbox">
+                            Auto-refresh
+                        </label>
+                        <input type="number" id="refresh-interval" value="1" min="0.5" max="60" step="0.5" class="input"
+                            style="width: 4rem;">
+                        <span class="text-muted-foreground">s</span>
+                    </div>
+                    <button onclick="loadInstances()" class="btn btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="mr-2">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                            <path d="M16 16h5v5" />
+                        </svg>
+                        Refresh
+                    </button>
                 </div>
+                <!-- Hidden inputs for compatibility -->
+                <input type="checkbox" id="background-check" class="hidden">
             </div>
 
-            <div style="margin: 15px 0;">
-                <label style="display: inline-flex; align-items: center; margin-right: 20px;">
-                    <input type="checkbox" id="filter-ports-only" onchange="applyDiscoveryFilters()"
-                        style="width: auto; margin-right: 5px;">
+            <div id="instances-list" class="grid">
+                <!-- Cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- Discovery Tab -->
+        <div id="discover-tab" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-2xl">All Processes</h2>
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span id="discovery-freshness-dot" class="status-dot"></span>
+                        <span id="discovery-freshness-text">Not discovered</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 text-sm">
+                        <label class="label">
+                            <input type="checkbox" id="discover-auto-refresh-enable" class="checkbox">
+                            Auto-refresh
+                        </label>
+                        <input type="number" id="discover-refresh-interval" value="2" min="1" max="60" step="1"
+                            class="input" style="width: 4rem;">
+                        <span class="text-muted-foreground">s</span>
+                    </div>
+                    <button onclick="discoverProcesses()" class="btn btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="mr-2">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                            <path d="M16 16h5v5" />
+                        </svg>
+                        Scan
+                    </button>
+                </div>
+                <!-- Hidden inputs for compatibility -->
+                <input type="checkbox" id="discover-background-check" class="hidden">
+            </div>
+
+            <div class="mb-6 flex gap-4">
+                <label class="label">
+                    <input type="checkbox" id="filter-ports-only" onchange="applyDiscoveryFilters()" class="checkbox">
                     Only show processes with ports
                 </label>
-                <label style="display: inline-flex; align-items: center; margin-right: 20px;">
-                    <input type="checkbox" id="filter-top-level" onchange="applyDiscoveryFilters()"
-                        style="width: auto; margin-right: 5px;">
-                    Only show top-level commands (below shells)
+                <label class="label">
+                    <input type="checkbox" id="filter-top-level" onchange="applyDiscoveryFilters()" class="checkbox">
+                    Only show top-level commands
                 </label>
             </div>
+
+            <div id="discover-list" class="grid">
+                <!-- Cards will be injected here -->
+            </div>
+            <div id="discover-empty" class="hidden text-center py-12 text-muted-foreground">
+                No processes match the current filters
+            </div>
         </div>
 
-        <table id="discover-table" style="display: none;">
-            <thead>
-                <tr>
-                    <th>PID</th>
-                    <th>Name</th>
-                    <th>Command</th>
-                    <th>Working Directory</th>
-                    <th>Ports</th>
-                    <th>Resources</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="discover-list"></tbody>
-        </table>
-        <div id="discover-empty" style="text-align: center; color: #999; padding: 40px;">
-            Click "Discover Processes" to scan for running processes
+        <!-- Templates Tab -->
+        <div id="templates-tab" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl">Templates</h2>
+                <button onclick="showAddTemplateForm()" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                    </svg>
+                    Add Template
+                </button>
+            </div>
+            <div id="templates-list" class="grid"></div>
         </div>
-    </div>
 
-    <!-- Templates Tab -->
-    <div id="templates-tab" class="tab-content">
-        <div style="margin-bottom: 20px;">
-            <button class="primary" onclick="showAddTemplateForm()">+ Add Template</button>
+        <!-- Resources Tab -->
+        <div id="resources-tab" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl">Resources</h2>
+                <button onclick="showTab('types', event)" class="btn btn-outline">
+                    Manage Types
+                </button>
+            </div>
+            <div id="resources-list" class="grid"></div>
         </div>
-        <div id="templates-list"></div>
-    </div>
 
-    <!-- Resources Tab -->
-    <div id="resources-tab" class="tab-content">
-        <div id="resources-list"></div>
-    </div>
-
-    <!-- Resource Types Tab -->
-    <div id="types-tab" class="tab-content">
-        <div style="margin-bottom: 20px;">
-            <button class="primary" onclick="showAddResourceTypeForm()">+ Add Resource Type</button>
+        <!-- Resource Types Tab -->
+        <div id="types-tab" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl">Resource Types</h2>
+                <button onclick="showAddResourceTypeForm()" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="mr-2">
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                    </svg>
+                    Add Type
+                </button>
+            </div>
+            <div id="types-list" class="grid"></div>
         </div>
-        <div id="types-list"></div>
-    </div>
 
-    <!-- Configuration Tab -->
-    <div id="config-tab" class="tab-content">
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="margin: 0;">State Configuration</h2>
-                <div>
-                    <button class="primary" onclick="saveConfig()">Save Configuration</button>
-                    <button onclick="loadConfig()">↻ Reload</button>
+        <!-- Config Tab -->
+        <div id="config-tab" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl">Configuration</h2>
+                <div class="flex gap-2">
+                    <button onclick="loadConfig()" class="btn btn-outline">
+                        Reload
+                    </button>
+                    <button onclick="saveConfig()" class="btn btn-primary">
+                        Save Changes
+                    </button>
                 </div>
             </div>
-            <p style="color: #666; margin-bottom: 15px;">
-                Edit the entire state JSON. Be careful - invalid JSON will be rejected.
-            </p>
-            <textarea id="config-editor"
-                style="width: 100%; min-height: 500px; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
-            <div id="config-status" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
+            <div class="card">
+                <div class="card-content" style="padding-top: 1.5rem;">
+                    <p class="text-sm text-muted-foreground mb-4">Edit the entire state JSON. Invalid JSON will be
+                        rejected.</p>
+                    <textarea id="config-editor" class="input"
+                        style="min-height: 500px; font-family: monospace; height: auto;"></textarea>
+                    <div id="config-status" class="mt-4 hidden rounded-md p-3 text-sm"></div>
+                </div>
+            </div>
         </div>
-    </div>
+    </main>
 
     <script>
+        // State
         let instances = {};
         let templates = {};
         let resources = {};
@@ -477,448 +806,140 @@
         let refreshIntervalId = null;
         let discoverRefreshIntervalId = null;
         let freshnessIntervalId = null;
-        let lastInstancesHTML = '';
-        let sortColumn = 'name';
-        let sortDirection = 'asc';
-        let discoveredProcesses = []; // Store all discovered processes for filtering
+        let discoveredProcesses = [];
         let lastInstancesUpdate = null;
         let lastDiscoveryUpdate = null;
-        let lastRefreshTime = null;
         let isDataStale = false;
         let isPageVisible = true;
 
-        // Check if data is stale
-        function checkStaleness() {
-            if (!lastInstancesUpdate) {
-                isDataStale = false;
-                return;
-            }
+        // Tab Switching
+        function showTab(tabName, event) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.setAttribute('data-state', btn.dataset.tab === tabName ? 'active' : 'inactive');
+            });
 
-            const interval = parseFloat(document.getElementById('refresh-interval').value);
-            if (interval <= 0) {
-                isDataStale = false;
-                return;
-            }
-
-            const timeSinceRefresh = (Date.now() - lastInstancesUpdate) / 1000;
-            const wasStale = isDataStale;
-            // Mark stale if refresh interval + 5 seconds has passed (matches red threshold)
-            isDataStale = timeSinceRefresh >= (interval + 5);
-
-            // Re-render if staleness state changed
-            if (wasStale !== isDataStale) {
-                renderInstances();
-            }
-        }
-
-        // Initialize refresh interval
-        function updateRefreshInterval() {
-            const interval = parseFloat(document.getElementById('refresh-interval').value);
-            const backgroundCheck = document.getElementById('background-check').checked;
-            const autoRefreshEnabled = document.getElementById('auto-refresh-enable').checked;
-
-            if (refreshIntervalId) {
-                clearInterval(refreshIntervalId);
-                refreshIntervalId = null;
-            }
-
-            // Only start auto-refresh if enabled AND interval > 0 AND either:
-            // - backgroundCheck is enabled, OR
-            // - page is visible
-            if (autoRefreshEnabled && interval > 0 && (backgroundCheck || isPageVisible)) {
-                refreshIntervalId = setInterval(loadInstances, interval * 1000);
-            }
-        }
-
-        // Initialize discovery refresh interval
-        function updateDiscoveryRefreshInterval() {
-            const interval = parseFloat(document.getElementById('discover-refresh-interval').value);
-            const backgroundCheck = document.getElementById('discover-background-check').checked;
-            const autoRefreshEnabled = document.getElementById('discover-auto-refresh-enable').checked;
-
-            if (discoverRefreshIntervalId) {
-                clearInterval(discoverRefreshIntervalId);
-                discoverRefreshIntervalId = null;
-            }
-
-            if (autoRefreshEnabled && interval > 0 && (backgroundCheck || isPageVisible)) {
-                discoverRefreshIntervalId = setInterval(discoverProcesses, interval * 1000);
-            }
-        }
-
-        // Update freshness indicators
-        function updateFreshnessIndicators() {
-            const now = Date.now();
-
-            // Update instances freshness
-            if (lastInstancesUpdate) {
-                const ageSeconds = (now - lastInstancesUpdate) / 1000;
-                const dot = document.getElementById('instances-freshness-dot');
-                const text = document.getElementById('instances-freshness-text');
-                const refreshInterval = parseFloat(document.getElementById('refresh-interval').value);
-
-                // Dynamic thresholds based on refresh interval
-                const greenThreshold = refreshInterval + 2;
-                const yellowThreshold = refreshInterval + 5;
-
-                if (ageSeconds < greenThreshold) {
-                    dot.className = 'freshness-dot fresh';
-                    text.textContent = `Live (${ageSeconds.toFixed(1)}s ago)`;
-                } else if (ageSeconds < yellowThreshold) {
-                    dot.className = 'freshness-dot stale';
-                    text.textContent = `${ageSeconds.toFixed(1)}s ago`;
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                if (content.id === `${tabName}-tab`) {
+                    content.classList.remove('hidden');
+                    content.classList.add('block');
                 } else {
-                    dot.className = 'freshness-dot old';
-                    text.textContent = `${ageSeconds.toFixed(0)}s ago`;
-                }
-            }
-
-            // Update discovery freshness
-            if (lastDiscoveryUpdate) {
-                const ageSeconds = (now - lastDiscoveryUpdate) / 1000;
-                const dot = document.getElementById('discovery-freshness-dot');
-                const text = document.getElementById('discovery-freshness-text');
-                const refreshInterval = parseFloat(document.getElementById('discover-refresh-interval').value);
-
-                // Dynamic thresholds based on refresh interval
-                const greenThreshold = refreshInterval + 2;
-                const yellowThreshold = refreshInterval + 5;
-
-                if (ageSeconds < greenThreshold) {
-                    dot.className = 'freshness-dot fresh';
-                    text.textContent = `Fresh (${ageSeconds.toFixed(1)}s ago)`;
-                } else if (ageSeconds < yellowThreshold) {
-                    dot.className = 'freshness-dot stale';
-                    text.textContent = `${ageSeconds.toFixed(1)}s ago`;
-                } else {
-                    dot.className = 'freshness-dot old';
-                    text.textContent = `${Math.floor(ageSeconds / 60)}m ${Math.floor(ageSeconds % 60)}s ago`;
-                }
-            }
-        }
-
-        // Listen for refresh interval changes
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('refresh-interval').addEventListener('change', updateRefreshInterval);
-            document.getElementById('background-check').addEventListener('change', updateRefreshInterval);
-            document.getElementById('auto-refresh-enable').addEventListener('change', updateRefreshInterval);
-            updateRefreshInterval();
-
-            // Discovery tab listeners
-            document.getElementById('discover-refresh-interval').addEventListener('change', updateDiscoveryRefreshInterval);
-            document.getElementById('discover-background-check').addEventListener('change', updateDiscoveryRefreshInterval);
-            document.getElementById('discover-auto-refresh-enable').addEventListener('change', updateDiscoveryRefreshInterval);
-            updateDiscoveryRefreshInterval();
-
-            // Start freshness indicator updates
-            freshnessIntervalId = setInterval(updateFreshnessIndicators, 1000);
-            // Check for staleness every second
-            setInterval(checkStaleness, 1000);
-
-            // Handle page visibility changes
-            document.addEventListener('visibilitychange', () => {
-                isPageVisible = !document.hidden;
-                updateRefreshInterval();
-                updateDiscoveryRefreshInterval();
-
-                // If page became visible and auto-refresh is enabled, immediately refresh
-                if (isPageVisible) {
-                    if (document.getElementById('auto-refresh-enable').checked && parseFloat(document.getElementById('refresh-interval').value) > 0) {
-                        loadInstances();
-                    }
-                    if (document.getElementById('discover-auto-refresh-enable').checked && parseFloat(document.getElementById('discover-refresh-interval').value) > 0) {
-                        discoverProcesses();
-                    }
+                    content.classList.add('hidden');
+                    content.classList.remove('block');
                 }
             });
-        });
 
-        async function loadInstances() {
-            const res = await fetch('/api/instances');
-            instances = await res.json() || {};
-            lastInstancesUpdate = Date.now();
-
-            // Mark data as fresh
-            lastRefreshTime = Date.now();
-            isDataStale = false;
-
-            renderInstances();
+            // Load data
+            if (tabName === 'instances') loadInstances();
+            if (tabName === 'discover') discoverProcesses();
+            if (tabName === 'templates') loadTemplates();
+            if (tabName === 'resources') loadResources();
+            if (tabName === 'types') loadResourceTypes();
+            if (tabName === 'config') loadConfig();
         }
+
+        // --- Rendering Functions ---
 
         function renderInstances() {
-            const tbody = document.getElementById('instances-list');
+            const container = document.getElementById('instances-list');
+
             if (Object.keys(instances).length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">No instances running</td></tr>';
-                lastInstancesHTML = '';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold">No instances running</h3>
+                        <p class="mb-4 mt-2 text-sm text-muted-foreground">Start a new instance from a template to get started.</p>
+                        <button onclick="showTab('templates', event)" class="btn btn-primary">
+                            Go to Templates
+                        </button>
+                    </div>
+                `;
                 return;
             }
 
-            // Convert to array and sort
-            let instancesArray = Object.values(instances);
-            instancesArray.sort((a, b) => {
-                let aVal, bVal;
-
-                switch (sortColumn) {
-                    case 'name':
-                        aVal = a.name || '';
-                        bVal = b.name || '';
-                        break;
-                    case 'status':
-                        aVal = a.status || '';
-                        bVal = b.status || '';
-                        break;
-                    case 'pid':
-                        aVal = a.pid || 0;
-                        bVal = b.pid || 0;
-                        break;
-                    case 'cputime':
-                        aVal = a.cputime || 0;
-                        bVal = b.cputime || 0;
-                        break;
-                    case 'command':
-                        aVal = a.command || '';
-                        bVal = b.command || '';
-                        break;
-                    default:
-                        return 0;
-                }
-
-                if (typeof aVal === 'string') {
-                    return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-                } else {
-                    return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-                }
-            });
-
-            // Build new HTML
-            const newHTML = instancesArray.map(i => {
-                const actions = [];
-                const staleClass = isDataStale ? ' stale' : '';
-
-                if (i.status === 'running') {
-                    actions.push(`<button class="small action-stop${staleClass}" onclick="stopInstance('${i.name}')">Stop</button>`);
-                } else if (i.status === 'stopped') {
-                    actions.push(`<button class="small action-start${staleClass}" onclick="restartInstance('${i.name}')">Start</button>`);
-                }
-
-                actions.push(`<button class="small action-add${staleClass}" onclick="addAsTemplate('${i.name}')">+</button>`);
-                actions.push(`<button class="small action-remove${staleClass}" onclick="deleteInstance('${i.name}')">-</button>`);
-
-                // Add lightning button if action is defined
-                if (i.action) {
-                    actions.push(`<button class="small action-lightning${staleClass}" onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}')">⚡</button>`);
-                }
-                // Add 'stale' class to running status when data is stale
-                const statusClass = i.status === 'running' && isDataStale ? `${i.status} stale` : i.status;
+            const html = Object.values(instances).map(i => {
+                const isRunning = i.status === 'running';
+                const statusClass = isRunning ?
+                    (isDataStale ? 'badge-warning' : 'badge-success') :
+                    (i.status === 'stopped' ? 'badge-neutral' : 'badge-error');
 
                 return `
-                    <tr data-instance="${i.name}">
-                        <td><strong>${i.name}</strong></td>
-                        <td><span class="status ${statusClass}">${i.status}</span></td>
-                        <td>${i.pid || 'N/A'}</td>
-                        <td>${formatCPUTime(i.cputime)}</td>
-                        <td><span class="code">${truncate(i.command, 60)}</span></td>
-                        <td>${formatResources(i.resources)}</td>
-                        <td class="actions">
-                            ${actions.join('')}
-                        </td>
-                    </tr>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-semibold text-lg">${i.name}</h3>
+                                <div class="badge ${statusClass}">
+                                    ${i.status}
+                                </div>
+                            </div>
+                            <div class="flex gap-1">
+                                ${isRunning ?
+                        `<button onclick="stopInstance('${i.name}')" class="btn btn-outline btn-icon" title="Stop">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                                    </button>` :
+                        `<button onclick="restartInstance('${i.name}')" class="btn btn-outline btn-icon" title="Start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    </button>`
+                    }
+                                <button onclick="addAsTemplate('${i.name}')" class="btn btn-outline btn-icon" title="Save as Template">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" x2="12" y1="18" y2="12"/><line x1="9" x2="15" y1="15" y2="15"/></svg>
+                                </button>
+                                <button onclick="deleteInstance('${i.name}')" class="btn btn-ghost btn-icon text-destructive" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                </button>
+                                ${i.action ?
+                        `<button onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}')" class="btn btn-primary btn-icon" title="Open Action">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                                    </button>` : ''
+                    }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <span class="text-muted-foreground block text-xs">PID</span>
+                                <span class="font-mono text-sm">${i.pid || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-muted-foreground block text-xs">CPU Time</span>
+                                <span class="font-mono text-sm">${formatCPUTime(i.cputime)}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground text-xs">Command</span>
+                            <div class="code-block">
+                                ${i.command}
+                            </div>
+                        </div>
+                        ${Object.keys(i.resources || {}).length > 0 ? `
+                            <div class="mt-1">
+                                <span class="text-muted-foreground text-xs">Resources</span>
+                                <div class="flex gap-1" style="flex-wrap: wrap; margin-top: 0.25rem;">
+                                    ${Object.entries(i.resources).map(([k, v]) =>
+                        `<span class="badge badge-neutral">
+                                            ${k}=${v}
+                                        </span>`
+                    ).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
                 `;
             }).join('');
 
-            // Only update if changed (prevents flashing)
-            if (newHTML !== lastInstancesHTML) {
-                tbody.innerHTML = newHTML;
-                lastInstancesHTML = newHTML;
-            }
-
-            // Update sort indicators
-            updateSortIndicators();
+            container.innerHTML = html;
         }
 
-        async function loadTemplates() {
-            const res = await fetch('/api/templates');
-            templates = await res.json() || {};
+        function renderDiscovery() {
+            const container = document.getElementById('discover-list');
+            const empty = document.getElementById('discover-empty');
 
-            const list = document.getElementById('templates-list');
-            const html = Object.values(templates).map(t => `
-                <div class="card">
-                    <h3>${t.label || t.id}</h3>
-                    <p><strong>ID:</strong> ${t.id}</p>
-                    <p><strong>Command:</strong> <span class="code">${t.command}</span></p>
-                    <p><strong>Resources:</strong> ${(t.resources || []).join(', ')}</p>
-                    <p><strong>Default Vars:</strong> ${JSON.stringify(t.vars || {})}</p>
-                    <button class="primary" onclick="startFromTemplate('${t.id}')">Create Instance</button>
-                </div>
-            `).join('');
-            list.innerHTML = html;
-        }
-
-        async function loadResources() {
-            const res = await fetch('/api/resources');
-            resources = await res.json() || {};
-
-            const list = document.getElementById('resources-list');
-            if (Object.keys(resources).length === 0) {
-                list.innerHTML = '<div class="card"><p style="color:#999;">No resources allocated</p></div>';
-                return;
-            }
-
-            const html = Object.entries(resources).map(([type, resList]) => `
-                <div class="card">
-                    <h3>${type}</h3>
-                    ${resList.map(r => `
-                        <div class="resource-type">
-                            <strong>${r.value}</strong> → ${r.owner}
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-            list.innerHTML = html;
-        }
-
-        async function loadResourceTypes() {
-            const res = await fetch('/api/resource-types');
-            types = await res.json() || {};
-
-            const list = document.getElementById('types-list');
-            const html = Object.values(types).map(t => `
-                <div class="card">
-                    <h3>${t.name}</h3>
-                    <p><strong>Check:</strong> <span class="code">${t.check || '(none)'}</span></p>
-                    <p><strong>Counter:</strong> ${t.counter ? 'Yes' : 'No'}</p>
-                    ${t.counter ? `<p><strong>Range:</strong> ${t.start} - ${t.end}</p>` : ''}
-                </div>
-            `).join('');
-            list.innerHTML = html;
-        }
-
-        async function loadConfig() {
-            const res = await fetch('/api/config');
-            const config = await res.json();
-            document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
-            showConfigStatus('Configuration loaded', 'success');
-        }
-
-        async function saveConfig() {
-            const editor = document.getElementById('config-editor');
-            let config;
-
-            try {
-                config = JSON.parse(editor.value);
-            } catch (err) {
-                showConfigStatus('Invalid JSON: ' + err.message, 'error');
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(config)
-                });
-
-                if (!res.ok) {
-                    const err = await res.text();
-                    showConfigStatus('Save failed: ' + err, 'error');
-                    return;
-                }
-
-                showConfigStatus('Configuration saved successfully', 'success');
-
-                // Reload all data
-                loadInstances();
-                loadTemplates();
-                loadResources();
-                loadResourceTypes();
-            } catch (err) {
-                showConfigStatus('Error: ' + err.message, 'error');
-            }
-        }
-
-        function showConfigStatus(message, type) {
-            const status = document.getElementById('config-status');
-            status.textContent = message;
-            status.style.display = 'block';
-
-            if (type === 'success') {
-                status.style.background = '#d4edda';
-                status.style.color = '#155724';
-                status.style.border = '1px solid #c3e6cb';
-            } else {
-                status.style.background = '#f8d7da';
-                status.style.color = '#721c24';
-                status.style.border = '1px solid #f5c6cb';
-            }
-
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 3000);
-        }
-
-        async function discoverProcesses() {
-            const res = await fetch(`/api/discover?ports_only=false`);
-            discoveredProcesses = await res.json();
-            lastDiscoveryUpdate = Date.now();
-
-            if (!discoveredProcesses || discoveredProcesses.length === 0) {
-                const table = document.getElementById('discover-table');
-                const empty = document.getElementById('discover-empty');
-                table.style.display = 'none';
-                empty.style.display = 'block';
-                empty.textContent = 'No discoverable processes found';
-                return;
-            }
-
-            // Build process tree for top-level detection
-            buildProcessTree();
-
-            // Apply filters
-            applyDiscoveryFilters();
-        }
-
-        function buildProcessTree() {
-            // Common shell names
-            const shells = ['bash', 'zsh', 'sh', 'fish', 'dash', 'ksh', 'tcsh', 'csh'];
-
-            // Build parent-child relationships
-            const processMap = {};
-            const childrenMap = {};
-
-            discoveredProcesses.forEach(p => {
-                processMap[p.pid] = p;
-                p.isTopLevel = false;
-                p.allPorts = new Set(p.ports || []);
-
-                if (!childrenMap[p.ppid]) {
-                    childrenMap[p.ppid] = [];
-                }
-                childrenMap[p.ppid].push(p);
-            });
-
-            // Find processes whose parent is a shell
-            discoveredProcesses.forEach(p => {
-                const parent = processMap[p.ppid];
-                if (parent) {
-                    const parentName = parent.name || '';
-                    if (shells.includes(parentName)) {
-                        p.isTopLevel = true;
-
-                        // Aggregate all ports from children recursively
-                        function aggregateChildPorts(proc) {
-                            const children = childrenMap[proc.pid] || [];
-                            children.forEach(child => {
-                                (child.ports || []).forEach(port => p.allPorts.add(port));
-                                aggregateChildPorts(child);
-                            });
-                        }
-                        aggregateChildPorts(p);
-                    }
-                }
-            });
-        }
-
-        function applyDiscoveryFilters() {
             const filterPorts = document.getElementById('filter-ports-only').checked;
             const filterTopLevel = document.getElementById('filter-top-level').checked;
 
@@ -932,149 +953,304 @@
                 filtered = filtered.filter(p => p.isTopLevel);
             }
 
-            const tbody = document.getElementById('discover-list');
-            const table = document.getElementById('discover-table');
-            const empty = document.getElementById('discover-empty');
-
             if (filtered.length === 0) {
-                table.style.display = 'none';
-                empty.style.display = 'block';
-                empty.textContent = 'No processes match the current filters';
+                container.innerHTML = '';
+                empty.classList.remove('hidden');
                 return;
             }
 
-            table.style.display = 'table';
-            empty.style.display = 'none';
+            empty.classList.add('hidden');
 
-            tbody.innerHTML = filtered.map(p => {
-                // Show all ports (including children's) for top-level processes
+            const html = filtered.map(p => {
                 const portsToShow = p.isTopLevel && p.allPorts ? Array.from(p.allPorts) : (p.ports || []);
-                const portsStr = portsToShow.length > 0 ? portsToShow.join(', ') : '-';
-                const resourcesStr = formatResources(p.resources);
-                const nameStr = p.name || '-';
-                const cmdShort = truncate(p.command, 40);
-                const cwdShort = truncate(p.cwd, 30);
 
                 return `
-                    <tr>
-                        <td>${p.pid}</td>
-                        <td><strong>${nameStr}</strong>${p.isTopLevel ? ' 🔝' : ''}</td>
-                        <td><span class="code">${cmdShort}</span></td>
-                        <td><span class="code">${cwdShort}</span></td>
-                        <td>${portsStr}</td>
-                        <td>${resourcesStr}</td>
-                        <td>
-                            <button class="primary small" onclick="monitorProcess(${p.pid}, '${escapeHtml(p.command)}')">+ Add</button>
-                        </td>
-                    </tr>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-semibold text-lg">${p.name || 'Unknown'}</h3>
+                                ${p.isTopLevel ? '<span class="badge badge-neutral">Top</span>' : ''}
+                            </div>
+                            <button onclick="monitorProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn btn-primary" style="height: 2rem; padding: 0 0.75rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <span class="text-muted-foreground block text-xs">PID</span>
+                                <span class="font-mono text-sm">${p.pid}</span>
+                            </div>
+                            <div>
+                                <span class="text-muted-foreground block text-xs">Ports</span>
+                                <span class="font-mono text-sm">${portsToShow.length > 0 ? portsToShow.join(', ') : '-'}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground text-xs">Command</span>
+                            <div class="code-block">
+                                ${p.command}
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 `;
             }).join('');
+
+            container.innerHTML = html;
         }
 
-        async function monitorProcess(pid, command) {
-            // Auto-generate name from command
-            const cmdParts = command.split(' ');
-            const cmdName = cmdParts[0].split('/').pop();
-            const name = prompt(`Add process as:`, `${cmdName}-${pid}`);
-            if (!name) return;
+        // --- Logic Functions (Preserved) ---
 
-            try {
-                const res = await fetch('/api/monitor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pid: pid, name: name })
-                });
-
-                if (!res.ok) {
-                    const err = await res.text();
-                    alert('Error: ' + err);
-                    return;
-                }
-
-                // Success - just refresh without popup
-                discoverProcesses(); // Refresh discovery list
-                loadInstances(); // Refresh instances list
-            } catch (err) {
-                alert('Error: ' + err.message);
+        function formatCPUTime(seconds) {
+            if (!seconds) return '-';
+            if (seconds < 60) return seconds.toFixed(2) + 's';
+            if (seconds < 3600) {
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return `${m}m ${s}s`;
             }
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            return `${h}h ${m}m`;
+        }
+
+        function truncate(str, n) {
+            return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
         }
 
         function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, m => map[m]);
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
-        function showTab(tabName, event) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        function escapeQuotes(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
 
-            // Find and activate the tab button
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // Fallback: find the tab button by data attribute or text
-                const tabs = document.querySelectorAll('.tab');
-                tabs.forEach(tab => {
-                    if (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(tabName)) {
-                        tab.classList.add('active');
+        // --- API Interactions ---
+
+        async function loadInstances() {
+            try {
+                const res = await fetch('/api/instances');
+                instances = await res.json() || {};
+                lastInstancesUpdate = Date.now();
+                isDataStale = false;
+                renderInstances();
+                updateFreshnessIndicators();
+            } catch (err) {
+                console.error("Failed to load instances", err);
+            }
+        }
+
+        async function discoverProcesses() {
+            try {
+                const res = await fetch('/api/discover');
+                const data = await res.json();
+                discoveredProcesses = data || [];
+                lastDiscoveryUpdate = Date.now();
+
+                // Process hierarchy logic
+                const processMap = {};
+                const childrenMap = {};
+                const shells = ['sh', 'bash', 'zsh', 'fish', 'sudo', 'su'];
+
+                discoveredProcesses.forEach(p => {
+                    processMap[p.pid] = p;
+                    p.allPorts = new Set(p.ports || []);
+                });
+
+                discoveredProcesses.forEach(p => {
+                    if (p.ppid && processMap[p.ppid]) {
+                        if (!childrenMap[p.ppid]) childrenMap[p.ppid] = [];
+                        childrenMap[p.ppid].push(p);
                     }
                 });
-            }
-            document.getElementById(tabName + '-tab').classList.add('active');
 
-            if (tabName === 'instances') loadInstances();
-            if (tabName === 'discover') { /* Don't auto-discover, wait for button click */ }
-            if (tabName === 'templates') loadTemplates();
-            if (tabName === 'resources') loadResources();
-            if (tabName === 'types') loadResourceTypes();
-            if (tabName === 'config') loadConfig();
+                discoveredProcesses.forEach(p => {
+                    const parent = processMap[p.ppid];
+                    if (parent) {
+                        const parentName = parent.name || '';
+                        if (shells.includes(parentName)) {
+                            p.isTopLevel = true;
+                            function aggregateChildPorts(proc) {
+                                const children = childrenMap[proc.pid] || [];
+                                children.forEach(child => {
+                                    (child.ports || []).forEach(port => p.allPorts.add(port));
+                                    aggregateChildPorts(child);
+                                });
+                            }
+                            aggregateChildPorts(p);
+                        }
+                    }
+                });
+
+                renderDiscovery();
+                updateFreshnessIndicators();
+            } catch (err) {
+                console.error("Failed to discover processes", err);
+            }
         }
 
-        async function startFromTemplate(templateId) {
-            // Ensure templates are loaded
-            if (Object.keys(templates).length === 0) {
-                await loadTemplates();
-            }
+        function applyDiscoveryFilters() {
+            renderDiscovery();
+        }
 
-            const template = templates[templateId];
-            if (!template) {
-                alert('Template not found');
+        async function loadTemplates() {
+            const res = await fetch('/api/templates');
+            templates = await res.json() || {};
+
+            const list = document.getElementById('templates-list');
+            const html = Object.values(templates).map(t => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold text-lg">${t.label || t.id}</h3>
+                        <p class="text-sm text-muted-foreground">ID: ${t.id}</p>
+                    </div>
+                    <div class="card-content">
+                        <div class="mb-4">
+                            <span class="text-muted-foreground text-xs">Command</span>
+                            <div class="code-block">
+                                ${t.command}
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="startFromTemplate('${t.id}')" class="btn btn-primary">
+                                Create Instance
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            list.innerHTML = html;
+        }
+
+        async function loadResources() {
+            const res = await fetch('/api/resources');
+            resources = await res.json() || {};
+
+            const list = document.getElementById('resources-list');
+            if (Object.keys(resources).length === 0) {
+                list.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No resources allocated</div>';
                 return;
             }
+
+            const html = Object.entries(resources).map(([type, resList]) => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold text-lg">${type}</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="flex flex-col gap-2">
+                            ${resList.map(r => `
+                                <div class="flex items-center justify-between rounded-md border p-2 text-sm">
+                                    <span class="font-mono font-medium">${r.value}</span>
+                                    <span class="text-muted-foreground text-xs">→ ${r.owner}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            list.innerHTML = html;
+        }
+
+        async function loadResourceTypes() {
+            const res = await fetch('/api/resource-types');
+            types = await res.json() || {};
+
+            const list = document.getElementById('types-list');
+            const html = Object.values(types).map(t => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold text-lg">${t.name}</h3>
+                    </div>
+                    <div class="card-content text-sm flex flex-col gap-2">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Check</span>
+                            <span class="font-mono">${t.check || '(none)'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Counter</span>
+                            <span>${t.counter ? 'Yes' : 'No'}</span>
+                        </div>
+                        ${t.counter ? `
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Range</span>
+                            <span>${t.start} - ${t.end}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            list.innerHTML = html;
+        }
+
+        async function loadConfig() {
+            const res = await fetch('/api/config');
+            const config = await res.json();
+            document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+        }
+
+        async function saveConfig() {
+            const json = document.getElementById('config-editor').value;
+            const status = document.getElementById('config-status');
+            try {
+                JSON.parse(json); // Validate
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: json
+                });
+                if (res.ok) {
+                    status.textContent = 'Configuration saved successfully';
+                    status.className = 'mt-4 rounded-md p-3 text-sm block';
+                    status.style.backgroundColor = 'var(--success-bg)';
+                    status.style.color = 'var(--success-text)';
+                } else {
+                    throw new Error(await res.text());
+                }
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'mt-4 rounded-md p-3 text-sm block';
+                status.style.backgroundColor = 'var(--error-bg)';
+                status.style.color = 'var(--error-text)';
+            }
+            setTimeout(() => status.classList.add('hidden'), 3000);
+        }
+
+        // --- Actions ---
+
+        async function startFromTemplate(templateId) {
+            if (Object.keys(templates).length === 0) await loadTemplates();
+            const template = templates[templateId];
+            if (!template) return alert('Template not found');
 
             const name = prompt('Instance name:');
             if (!name) return;
 
             const vars = {};
             const varsToPrompt = new Set();
+            if (template.vars) Object.keys(template.vars).forEach(k => varsToPrompt.add(k));
 
-            // Add vars from template definition
-            if (template.vars) {
-                Object.keys(template.vars).forEach(k => varsToPrompt.add(k));
-            }
-
-            // Add vars from command placeholders
             const regex = /\${([^}]+)}/g;
             let match;
             while ((match = regex.exec(template.command)) !== null) {
                 varsToPrompt.add(match[1]);
             }
 
-            // Prompt for all vars
             for (const key of varsToPrompt) {
                 const defaultVal = (template.vars && template.vars[key]) || '';
                 const val = prompt(`${key} (default: ${defaultVal}):`, defaultVal);
-                if (val !== null) { // Allow empty string if user accepts default (or empty)
-                     vars[key] = val;
-                } else {
-                    return; // User cancelled
-                }
+                if (val !== null) vars[key] = val;
+                else return;
             }
 
             startInstance(templateId, name, vars);
@@ -1091,20 +1267,9 @@
                 const res = await fetch('/api/instances', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'start',
-                        template: templateId,
-                        name: name,
-                        vars: vars || {}
-                    })
+                    body: JSON.stringify({ action: 'start', template: templateId, name: name, vars: vars || {} })
                 });
-
-                if (!res.ok) {
-                    const err = await res.text();
-                    alert('Error: ' + err);
-                    return;
-                }
-
+                if (!res.ok) throw new Error(await res.text());
                 loadInstances();
             } catch (err) {
                 alert('Error: ' + err.message);
@@ -1113,17 +1278,12 @@
 
         async function stopInstance(name) {
             if (!confirm(`Stop instance "${name}"?`)) return;
-
             try {
                 await fetch('/api/instances', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'stop',
-                        instance_id: name
-                    })
+                    body: JSON.stringify({ action: 'stop', instance_id: name })
                 });
-
                 loadInstances();
             } catch (err) {
                 alert('Error: ' + err.message);
@@ -1135,18 +1295,9 @@
                 const res = await fetch('/api/instances', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'restart',
-                        instance_id: name
-                    })
+                    body: JSON.stringify({ action: 'restart', instance_id: name })
                 });
-
-                if (!res.ok) {
-                    const err = await res.text();
-                    alert('Error restarting: ' + err);
-                    return;
-                }
-
+                if (!res.ok) throw new Error(await res.text());
                 loadInstances();
             } catch (err) {
                 alert('Error: ' + err.message);
@@ -1154,49 +1305,31 @@
         }
 
         async function deleteInstance(name) {
-            if (!confirm(`Delete instance "${name}"? This cannot be undone.`)) return;
-
+            if (!confirm(`Delete instance "${name}"?`)) return;
             try {
                 await fetch('/api/instances', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'delete',
-                        instance_id: name
-                    })
+                    body: JSON.stringify({ action: 'delete', instance_id: name })
                 });
-
                 loadInstances();
             } catch (err) {
                 alert('Error: ' + err.message);
             }
         }
 
-        function escapeQuotes(str) {
-            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        }
-
         async function executeAction(instanceName, action) {
-            // Check if action is a URL
             const urlPattern = /^(https?:\/\/|http:\/\/)/i;
             if (urlPattern.test(action)) {
-                // Open URL in new tab
                 window.open(action, '_blank');
             } else {
-                // Execute command via API
                 try {
-                    const response = await fetch('/api/execute-action', {
+                    const res = await fetch('/api/execute-action', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            instance_name: instanceName
-                        })
+                        body: JSON.stringify({ instance_name: instanceName })
                     });
-
-                    if (!response.ok) {
-                        const error = await response.text();
-                        alert('Error executing action: ' + error);
-                    }
+                    if (!res.ok) alert('Error: ' + await res.text());
                 } catch (err) {
                     alert('Error: ' + err.message);
                 }
@@ -1205,15 +1338,9 @@
 
         async function addAsTemplate(name) {
             const instance = instances[name];
-            if (!instance) {
-                alert('Instance not found');
-                return;
-            }
-
-            // Build the template JSON for this instance
+            if (!instance) return alert('Instance not found');
             const templateId = prompt('Template ID:', instance.name + '-template');
             if (!templateId) return;
-
             const template = {
                 id: templateId,
                 label: 'Template from ' + instance.name,
@@ -1221,21 +1348,13 @@
                 resources: Object.keys(instance.resources || {}),
                 vars: instance.vars || {}
             };
-
             try {
                 const res = await fetch('/api/templates', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(template)
                 });
-
-                if (!res.ok) {
-                    const err = await res.text();
-                    alert('Error adding template: ' + err);
-                    return;
-                }
-
-                // Success - just reload templates without popup
+                if (!res.ok) throw new Error(await res.text());
                 loadTemplates();
             } catch (err) {
                 alert('Error: ' + err.message);
@@ -1245,7 +1364,6 @@
         function showAddTemplateForm() {
             const json = prompt('Paste template JSON:');
             if (!json) return;
-
             try {
                 fetch('/api/templates', {
                     method: 'POST',
@@ -1260,88 +1378,118 @@
         function showAddResourceTypeForm() {
             const name = prompt('Resource type name:');
             if (!name) return;
-
             const check = prompt('Check command (use ${value}):');
             const counter = confirm('Is this a counter resource?');
             let start = 0, end = 0;
-
             if (counter) {
                 start = parseInt(prompt('Start value:')) || 0;
                 end = parseInt(prompt('End value:')) || 0;
             }
-
             fetch('/api/resource-types', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name, check, counter, start, end
-                })
+                body: JSON.stringify({ name, check, counter, start, end })
             }).then(() => loadResourceTypes());
         }
 
-        function formatResources(resources) {
-            if (!resources) return '';
-            return Object.entries(resources).map(([k, v]) =>
-                `<span class="code">${k}=${v}</span>`
-            ).join(' ');
-        }
-
-        function truncate(s, n) {
-            if (!s || s.length <= n) return s;
-            return s.substring(0, n) + '...';
-        }
-
-        function formatCPUTime(seconds) {
-            if (!seconds || seconds === 0) return '-';
-
-            if (seconds < 60) {
-                return seconds.toFixed(2) + 's';
-            } else if (seconds < 3600) {
-                const minutes = Math.floor(seconds / 60);
-                const secs = (seconds % 60).toFixed(0);
-                return `${minutes}m ${secs}s`;
-            } else {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                return `${hours}h ${minutes}m`;
-            }
-        }
-
-        function updateSortIndicators() {
-            // Remove all sort classes
-            document.querySelectorAll('#instances-table th').forEach(th => {
-                th.classList.remove('sort-asc', 'sort-desc');
-            });
-
-            // Add sort class to current column
-            const currentTh = document.querySelector(`#instances-table th[data-sort="${sortColumn}"]`);
-            if (currentTh) {
-                currentTh.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-            }
-        }
-
-        function sortBy(column) {
-            if (sortColumn === column) {
-                // Toggle direction
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = 'asc';
-            }
-            loadInstances();
-        }
-
-        // Add click handlers to sortable headers
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('#instances-table th.sortable').forEach(th => {
-                th.addEventListener('click', () => {
-                    sortBy(th.getAttribute('data-sort'));
+        async function monitorProcess(pid, command) {
+            const cmdParts = command.split(' ');
+            const cmdName = cmdParts[0].split('/').pop();
+            const name = prompt(`Add process as:`, `${cmdName}-${pid}`);
+            if (!name) return;
+            try {
+                const res = await fetch('/api/monitor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pid: pid, name: name })
                 });
-            });
-        });
+                if (!res.ok) throw new Error(await res.text());
+                discoverProcesses();
+                loadInstances();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
 
-        // Initial load
-        loadInstances();
+        // --- Intervals & Freshness ---
+
+        function updateFreshnessIndicators() {
+            const now = Date.now();
+            if (lastInstancesUpdate) {
+                const age = (now - lastInstancesUpdate) / 1000;
+                const dot = document.getElementById('instances-freshness-dot');
+                const text = document.getElementById('instances-freshness-text');
+                if (age < 5) {
+                    dot.className = 'status-dot fresh';
+                    text.textContent = 'Live';
+                } else {
+                    dot.className = 'status-dot stale';
+                    text.textContent = `${age.toFixed(0)}s ago`;
+                }
+            }
+            if (lastDiscoveryUpdate) {
+                const age = (now - lastDiscoveryUpdate) / 1000;
+                const dot = document.getElementById('discovery-freshness-dot');
+                const text = document.getElementById('discovery-freshness-text');
+                if (age < 5) {
+                    dot.className = 'status-dot fresh';
+                    text.textContent = 'Fresh';
+                } else {
+                    dot.className = 'status-dot stale';
+                    text.textContent = `${age.toFixed(0)}s ago`;
+                }
+            }
+        }
+
+        function checkStaleness() {
+            if (!lastInstancesUpdate) return;
+            const interval = parseFloat(document.getElementById('refresh-interval').value);
+            if (interval <= 0) return;
+            const timeSinceRefresh = (Date.now() - lastInstancesUpdate) / 1000;
+            const wasStale = isDataStale;
+            isDataStale = timeSinceRefresh >= (interval + 5);
+            if (wasStale !== isDataStale) renderInstances();
+        }
+
+        function updateRefreshInterval() {
+            const interval = parseFloat(document.getElementById('refresh-interval').value);
+            const enabled = document.getElementById('auto-refresh-enable').checked;
+            if (refreshIntervalId) clearInterval(refreshIntervalId);
+            if (enabled && interval > 0 && isPageVisible) {
+                refreshIntervalId = setInterval(loadInstances, interval * 1000);
+            }
+        }
+
+        function updateDiscoveryRefreshInterval() {
+            const interval = parseFloat(document.getElementById('discover-refresh-interval').value);
+            const enabled = document.getElementById('discover-auto-refresh-enable').checked;
+            if (discoverRefreshIntervalId) clearInterval(discoverRefreshIntervalId);
+            if (enabled && interval > 0 && isPageVisible) {
+                discoverRefreshIntervalId = setInterval(discoverProcesses, interval * 1000);
+            }
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-interval').addEventListener('change', updateRefreshInterval);
+            document.getElementById('auto-refresh-enable').addEventListener('change', updateRefreshInterval);
+            document.getElementById('discover-refresh-interval').addEventListener('change', updateDiscoveryRefreshInterval);
+            document.getElementById('discover-auto-refresh-enable').addEventListener('change', updateDiscoveryRefreshInterval);
+
+            document.addEventListener('visibilitychange', () => {
+                isPageVisible = !document.hidden;
+                updateRefreshInterval();
+                updateDiscoveryRefreshInterval();
+                if (isPageVisible) {
+                    loadInstances();
+                }
+            });
+
+            setInterval(updateFreshnessIndicators, 1000);
+            setInterval(checkStaleness, 1000);
+
+            loadInstances();
+        });
     </script>
 </body>
 
