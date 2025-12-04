@@ -7,28 +7,19 @@
     <title>Vibecoding Process Manager</title>
     <style>
         :root {
-            --background: #ffffff;
-            --foreground: #09090b;
+            --bg: #ffffff;
+            --fg: #09090b;
             --card: #ffffff;
-            --card-foreground: #09090b;
-            --popover: #ffffff;
-            --popover-foreground: #09090b;
+            --card-fg: #09090b;
             --primary: #18181b;
-            --primary-foreground: #fafafa;
-            --secondary: #f4f4f5;
-            --secondary-foreground: #18181b;
+            --primary-fg: #fafafa;
             --muted: #f4f4f5;
-            --muted-foreground: #71717a;
-            --accent: #f4f4f5;
-            --accent-foreground: #18181b;
-            --destructive: #ef4444;
-            --destructive-foreground: #fafafa;
+            --muted-fg: #71717a;
             --border: #e4e4e7;
             --input: #e4e4e7;
             --ring: #18181b;
             --radius: 0.5rem;
 
-            /* Status Colors */
             --success-bg: #dcfce7;
             --success-text: #15803d;
             --warning-bg: #fef9c3;
@@ -37,39 +28,34 @@
             --error-text: #b91c1c;
             --neutral-bg: #f4f4f5;
             --neutral-text: #52525b;
+
+            --editor-bg: #fafafa;
         }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --background: #09090b;
-                --foreground: #fafafa;
-                --card: #09090b;
-                --card-foreground: #fafafa;
-                --popover: #09090b;
-                --popover-foreground: #fafafa;
-                --primary: #fafafa;
-                --primary-foreground: #18181b;
-                --secondary: #27272a;
-                --secondary-foreground: #fafafa;
-                --muted: #27272a;
-                --muted-foreground: #a1a1aa;
-                --accent: #27272a;
-                --accent-foreground: #fafafa;
-                --destructive: #7f1d1d;
-                --destructive-foreground: #fafafa;
-                --border: #27272a;
-                --input: #27272a;
-                --ring: #d4d4d8;
+        .dark {
+            --bg: #09090b;
+            --fg: #fafafa;
+            --card: #18181b;
+            /* Slightly lighter than bg */
+            --card-fg: #fafafa;
+            --primary: #fafafa;
+            --primary-fg: #18181b;
+            --muted: #27272a;
+            --muted-fg: #a1a1aa;
+            --border: #27272a;
+            --input: #27272a;
+            --ring: #d4d4d8;
 
-                --success-bg: #052e16;
-                --success-text: #4ade80;
-                --warning-bg: #422006;
-                --warning-text: #facc15;
-                --error-bg: #450a0a;
-                --error-text: #f87171;
-                --neutral-bg: #27272a;
-                --neutral-text: #a1a1aa;
-            }
+            --success-bg: #052e16;
+            --success-text: #4ade80;
+            --warning-bg: #422006;
+            --warning-text: #facc15;
+            --error-bg: #450a0a;
+            --error-text: #f87171;
+            --neutral-bg: #27272a;
+            --neutral-text: #a1a1aa;
+
+            --editor-bg: #000000;
         }
 
         * {
@@ -81,14 +67,15 @@
 
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--background);
-            color: var(--foreground);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Layout Utilities */
+        /* Layout */
         .flex {
             display: flex;
         }
@@ -105,20 +92,9 @@
             justify-content: space-between;
         }
 
-        .justify-center {
-            justify-content: center;
-        }
-
-        .justify-end {
-            justify-content: flex-end;
-        }
-
         .flex-1 {
-            flex: 1 1 0%;
-        }
-
-        .gap-1 {
-            gap: 0.25rem;
+            flex: 1;
+            min-height: 0;
         }
 
         .gap-2 {
@@ -129,18 +105,12 @@
             gap: 1rem;
         }
 
+        .p-4 {
+            padding: 1rem;
+        }
+
         .p-6 {
             padding: 1.5rem;
-        }
-
-        .px-6 {
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-        }
-
-        .py-2 {
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
         }
 
         .mb-4 {
@@ -155,18 +125,6 @@
             margin-right: 0.5rem;
         }
 
-        .mt-1 {
-            margin-top: 0.25rem;
-        }
-
-        .w-full {
-            width: 100%;
-        }
-
-        .h-full {
-            height: 100%;
-        }
-
         .hidden {
             display: none;
         }
@@ -175,1321 +133,692 @@
             display: block;
         }
 
-        /* Grid */
+        .h-full {
+            height: 100%;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        /* Grid - Increased min-width to prevent overlap */
         .grid {
             display: grid;
-            grid-template-columns: repeat(1, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
             gap: 1rem;
         }
 
-        @media (min-width: 768px) {
-            .grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-        }
-
         /* Typography */
-        h1,
         h2,
         h3,
         p {
             margin: 0;
         }
 
-        .text-2xl {
-            font-size: 1.5rem;
-            line-height: 2rem;
+        .text-xl {
+            font-size: 1.25rem;
             font-weight: 600;
-            letter-spacing: -0.025em;
         }
 
         .text-lg {
             font-size: 1.125rem;
-            line-height: 1.75rem;
             font-weight: 600;
         }
 
         .text-sm {
             font-size: 0.875rem;
-            line-height: 1.25rem;
         }
 
         .text-xs {
             font-size: 0.75rem;
-            line-height: 1rem;
         }
 
         .font-mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        }
-
-        .font-medium {
-            font-weight: 500;
+            font-family: monospace;
         }
 
         .font-semibold {
             font-weight: 600;
         }
 
-        .text-muted-foreground {
-            color: var(--muted-foreground);
-        }
-
-        .text-destructive {
-            color: var(--destructive);
+        .text-muted {
+            color: var(--muted-fg);
         }
 
         /* Components */
-
-        /* Header */
         header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            width: 100%;
-            border-bottom-width: 1px;
-            background-color: var(--background);
-            opacity: 0.95;
-            backdrop-filter: blur(4px);
-        }
-
-        .header-content {
-            display: flex;
             height: 3.5rem;
+            border-bottom-width: 1px;
+            display: flex;
             align-items: center;
             padding: 0 1.5rem;
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            white-space: nowrap;
+            height: 2.25rem;
+            padding: 0 1rem;
             border-radius: var(--radius);
             font-size: 0.875rem;
             font-weight: 500;
-            height: 2.25rem;
-            padding: 0 1rem;
-            transition: colors 0.2s;
             cursor: pointer;
-            border-width: 1px;
-            border-color: transparent;
-            text-decoration: none;
+            transition: opacity 0.2s;
+            background: transparent;
+            color: var(--fg);
+            border: 1px solid transparent;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-
-        .btn:focus-visible {
-            outline: 2px solid var(--ring);
-            outline-offset: 2px;
+        .btn:hover {
+            opacity: 0.8;
         }
 
         .btn-primary {
-            background-color: var(--primary);
-            color: var(--primary-foreground);
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
+            background: var(--primary);
+            color: var(--primary-fg);
         }
 
         .btn-outline {
             border-color: var(--input);
-            background-color: var(--background);
-            color: var(--foreground);
-        }
-
-        .btn-outline:hover {
-            background-color: var(--accent);
-            color: var(--accent-foreground);
-        }
-
-        .btn-ghost {
-            background-color: transparent;
-            color: var(--foreground);
-        }
-
-        .btn-ghost:hover {
-            background-color: var(--accent);
-            color: var(--accent-foreground);
-        }
-
-        .btn-destructive {
-            color: var(--destructive);
-            background-color: var(--background);
-            border-color: var(--input);
-        }
-
-        .btn-destructive:hover {
-            background-color: var(--destructive);
-            color: var(--destructive-foreground);
-            border-color: var(--destructive);
         }
 
         .btn-icon {
-            height: 2rem;
-            width: 2rem;
+            width: 2.25rem;
             padding: 0;
         }
 
-        /* Cards */
-        .card {
-            border-radius: 0.75rem;
-            border-width: 1px;
-            background-color: var(--card);
-            color: var(--card-foreground);
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            transition: box-shadow 0.2s;
+        .btn-sm {
+            height: 2rem;
+            font-size: 0.75rem;
         }
 
-        .card:hover {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .card-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body {
+            padding: 1.25rem 1rem;
+            flex: 1;
+            overflow: auto;
             display: flex;
             flex-direction: column;
-            gap: 0.375rem;
-            padding: 1.5rem;
-            padding-bottom: 0.75rem;
+            gap: 0.6rem;
         }
 
-        .card-content {
-            padding: 1.5rem;
-            padding-top: 0;
-        }
-
-        /* Badges */
         .badge {
-            display: inline-flex;
-            align-items: center;
+            padding: 0.125rem 0.5rem;
             border-radius: 9999px;
-            border-width: 1px;
-            padding: 0.125rem 0.625rem;
             font-size: 0.75rem;
             font-weight: 600;
-            transition: colors 0.2s;
-            border-color: transparent;
         }
 
         .badge-success {
-            background-color: var(--success-bg);
+            background: var(--success-bg);
             color: var(--success-text);
         }
 
         .badge-warning {
-            background-color: var(--warning-bg);
+            background: var(--warning-bg);
             color: var(--warning-text);
         }
 
         .badge-error {
-            background-color: var(--error-bg);
+            background: var(--error-bg);
             color: var(--error-text);
         }
 
         .badge-neutral {
-            background-color: var(--neutral-bg);
+            background: var(--neutral-bg);
             color: var(--neutral-text);
         }
 
-        /* Tabs */
-        .tab-nav {
-            display: inline-flex;
-            height: 2.5rem;
-            align-items: center;
-            justify-content: center;
+        .badge-stale {
+            background: var(--neutral-bg);
+            color: var(--muted-fg);
+        }
+
+        /* Grey for stale */
+
+        .input {
+            height: 2.25rem;
+            padding: 0 0.75rem;
             border-radius: var(--radius);
-            background-color: var(--muted);
+            border: 1px solid var(--input);
+            background: var(--bg);
+            color: var(--fg);
+            font-size: 0.875rem;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--muted);
             padding: 0.25rem;
-            color: var(--muted-foreground);
-            width: 100%;
-            max-width: 48rem;
+            border-radius: var(--radius);
         }
 
         .tab-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            border-radius: calc(var(--radius) - 2px);
-            padding: 0.375rem 0.75rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: inherit;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
             flex: 1;
-            transition: all 0.2s;
-        }
-
-        .tab-btn[data-state="active"] {
-            background-color: var(--background);
-            color: var(--foreground);
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        /* Inputs */
-        .input {
-            display: flex;
-            height: 2.25rem;
-            width: 100%;
-            border-radius: var(--radius);
-            border-width: 1px;
-            border-color: var(--input);
-            background-color: var(--background);
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-            color: var(--foreground);
-        }
-
-        .input:focus-visible {
-            outline: 2px solid var(--ring);
-            outline-offset: 2px;
-        }
-
-        .label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            padding: 0.375rem;
+            border-radius: calc(var(--radius) - 2px);
+            text-align: center;
             font-size: 0.875rem;
             font-weight: 500;
             cursor: pointer;
-        }
-
-        .checkbox {
-            height: 1rem;
-            width: 1rem;
-            border-radius: 0.25rem;
-            border-width: 1px;
-            border-color: var(--primary);
-        }
-
-        /* Code Block */
-        .code-block {
-            margin-top: 0.25rem;
-            border-radius: var(--radius);
-            background-color: var(--muted);
-            padding: 0.5rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        .code-block::-webkit-scrollbar {
-            height: 6px;
-        }
-
-        .code-block::-webkit-scrollbar-track {
+            color: var(--muted-fg);
+            border: none;
             background: transparent;
         }
 
-        .code-block::-webkit-scrollbar-thumb {
-            background-color: var(--muted-foreground);
-            opacity: 0.3;
-            border-radius: 3px;
+        .tab-btn.active {
+            background: var(--bg);
+            color: var(--fg);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        /* Empty State */
-        .empty-state {
-            grid-column: 1 / -1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        .code-block {
+            background: var(--muted);
+            padding: 0.5rem;
             border-radius: var(--radius);
-            border-width: 1px;
-            border-style: dashed;
-            padding: 2rem;
-            text-align: center;
+            font-family: monospace;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
 
-        .empty-icon {
-            display: flex;
-            height: 3rem;
-            width: 3rem;
-            align-items: center;
-            justify-content: center;
-            border-radius: 9999px;
-            background-color: var(--muted);
-            margin-bottom: 1rem;
-        }
-
-        /* Status Dot */
         .status-dot {
-            height: 0.5rem;
             width: 0.5rem;
-            border-radius: 9999px;
-            background-color: var(--muted-foreground);
+            height: 0.5rem;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
         }
 
-        .status-dot.fresh {
-            background-color: var(--success-text);
+        .status-dot.live {
+            background: var(--success-text);
             box-shadow: 0 0 4px var(--success-text);
         }
 
         .status-dot.stale {
-            background-color: var(--warning-text);
+            background: var(--warning-text);
+        }
+
+        /* Config Editor specific */
+        #config-editor {
+            background-color: var(--editor-bg);
+            color: var(--fg);
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            line-height: 1.5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--muted-fg);
+            opacity: 0.5;
+            border-radius: 4px;
         }
     </style>
 </head>
 
 <body>
     <header>
-        <div class="header-content">
-            <div class="flex items-center gap-2 mr-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    style="color: var(--primary);">
-                    <path d="M12 19h8"></path>
-                    <path d="m4 17 6-6-6-6"></path>
+        <div class="flex items-center gap-2 flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19h8"></path>
+                <path d="m4 17 6-6-6-6"></path>
+            </svg>
+            <span class="text-lg">VP Manager</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="btn btn-outline btn-icon" title="Toggle Theme">
+                <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round"></svg>
+            </button>
+            <button onclick="showStartForm()" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5v14"></path>
                 </svg>
-                <span class="text-lg">Vibecoding Process Manager</span>
-            </div>
-            <div class="flex-1 flex justify-end">
-                <button onclick="showStartForm()" class="btn btn-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path d="M5 12h14"></path>
-                        <path d="M12 5v14"></path>
-                    </svg>
-                    New Instance
-                </button>
-            </div>
+                New Instance
+            </button>
         </div>
     </header>
 
-    <main class="p-6">
-        <!-- Tabs Navigation -->
-        <div class="mb-6">
-            <div class="tab-nav">
-                <button onclick="showTab('instances', event)" class="tab-btn" data-state="active" data-tab="instances">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path
-                            d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2">
-                        </path>
-                    </svg>
-                    Instances
-                </button>
-                <button onclick="showTab('discover', event)" class="tab-btn" data-state="inactive" data-tab="discover">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <circle cx="12" cy="12" r="10" />
-                        <circle cx="12" cy="12" r="4" />
-                        <line x1="21.17" x2="12" y1="8" y2="8" />
-                        <line x1="3.95" x2="8.54" y1="6.06" y2="14" />
-                        <line x1="10.88" x2="15.46" y1="21.94" y2="14" />
-                    </svg>
-                    All Processes
-                </button>
-                <button onclick="showTab('templates', event)" class="tab-btn" data-state="inactive"
-                    data-tab="templates">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    Templates
-                </button>
-                <button onclick="showTab('resources', event)" class="tab-btn" data-state="inactive"
-                    data-tab="resources">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <rect width="20" height="14" x="2" y="3" rx="2" />
-                        <line x1="8" x2="16" y1="21" y2="21" />
-                        <line x1="12" x2="12" y1="17" y2="21" />
-                    </svg>
-                    Resources
-                </button>
-                <button onclick="showTab('config', event)" class="tab-btn" data-state="inactive" data-tab="config">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path
-                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    Config
-                </button>
+    <main class="flex-1 flex flex-col p-6 overflow-hidden">
+        <div class="mb-6 flex justify-center">
+            <div class="tab-nav" style="width: 100%; max-width: 600px;">
+                <button onclick="setTab('instances')" class="tab-btn active" data-tab="instances">Instances</button>
+                <button onclick="setTab('discover')" class="tab-btn" data-tab="discover">Processes</button>
+                <button onclick="setTab('templates')" class="tab-btn" data-tab="templates">Templates</button>
+                <button onclick="setTab('resources')" class="tab-btn" data-tab="resources">Resources</button>
+                <button onclick="setTab('config')" class="tab-btn" data-tab="config">Config</button>
             </div>
         </div>
 
-        <!-- Instances Tab -->
-        <div id="instances-tab" class="tab-content block">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-2xl">Managed Instances</h2>
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span id="instances-freshness-dot" class="status-dot"></span>
-                        <span id="instances-freshness-text">Not loaded</span>
+        <!-- Instances -->
+        <div id="tab-instances" class="tab-pane flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl">Managed Instances</h2>
+                    <div class="flex items-center text-sm text-muted ml-4">
+                        <span id="status-instances" class="status-dot stale"></span>
+                        <span id="text-instances">Loading...</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 text-sm">
-                        <label class="label">
-                            <input type="checkbox" id="auto-refresh-enable" checked class="checkbox">
-                            Auto-refresh
-                        </label>
-                        <input type="number" id="refresh-interval" value="1" min="0.5" max="60" step="0.5" class="input"
-                            style="width: 4rem;">
-                        <span class="text-muted-foreground">s</span>
-                    </div>
-                    <button onclick="loadInstances()" class="btn btn-outline">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="mr-2">
-                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                            <path d="M3 3v5h5" />
-                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                            <path d="M16 16h5v5" />
-                        </svg>
-                        Refresh
-                    </button>
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="auto-refresh" checked> Auto
+                    </label>
+                    <button onclick="loadInstances()" class="btn btn-outline btn-sm">Refresh</button>
                 </div>
-                <!-- Hidden inputs for compatibility -->
-                <input type="checkbox" id="background-check" class="hidden">
             </div>
-
-            <div id="instances-list" class="grid">
-                <!-- Cards will be injected here -->
-            </div>
+            <div id="list-instances" class="grid overflow-auto p-1"></div>
         </div>
 
-        <!-- Discovery Tab -->
-        <div id="discover-tab" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-2xl">All Processes</h2>
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span id="discovery-freshness-dot" class="status-dot"></span>
-                        <span id="discovery-freshness-text">Not discovered</span>
+        <!-- Discovery -->
+        <div id="tab-discover" class="tab-pane hidden flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl">System Processes</h2>
+                    <div class="flex items-center text-sm text-muted ml-4">
+                        <span id="status-discover" class="status-dot stale"></span>
+                        <span id="text-discover">Loading...</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 text-sm">
-                        <label class="label">
-                            <input type="checkbox" id="discover-auto-refresh-enable" class="checkbox">
-                            Auto-refresh
-                        </label>
-                        <input type="number" id="discover-refresh-interval" value="2" min="1" max="60" step="1"
-                            class="input" style="width: 4rem;">
-                        <span class="text-muted-foreground">s</span>
-                    </div>
-                    <button onclick="discoverProcesses()" class="btn btn-outline">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="mr-2">
-                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                            <path d="M3 3v5h5" />
-                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                            <path d="M16 16h5v5" />
-                        </svg>
-                        Scan
-                    </button>
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-ports" onchange="renderDiscovery()"> Ports Only
+                    </label>
+                    <button onclick="discoverProcesses()" class="btn btn-outline btn-sm">Scan</button>
                 </div>
-                <!-- Hidden inputs for compatibility -->
-                <input type="checkbox" id="discover-background-check" class="hidden">
             </div>
-
-            <div class="mb-6 flex gap-4">
-                <label class="label">
-                    <input type="checkbox" id="filter-ports-only" onchange="applyDiscoveryFilters()" class="checkbox">
-                    Only show processes with ports
-                </label>
-                <label class="label">
-                    <input type="checkbox" id="filter-top-level" onchange="applyDiscoveryFilters()" class="checkbox">
-                    Only show top-level commands
-                </label>
-            </div>
-
-            <div id="discover-list" class="grid">
-                <!-- Cards will be injected here -->
-            </div>
-            <div id="discover-empty" class="hidden text-center py-12 text-muted-foreground">
-                No processes match the current filters
-            </div>
+            <div id="list-discover" class="grid overflow-auto p-1"></div>
         </div>
 
-        <!-- Templates Tab -->
-        <div id="templates-tab" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl">Templates</h2>
-                <button onclick="showAddTemplateForm()" class="btn btn-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path d="M5 12h14" />
-                        <path d="M12 5v14" />
-                    </svg>
-                    Add Template
-                </button>
+        <!-- Templates -->
+        <div id="tab-templates" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Templates</h2>
+                <button onclick="addTemplate()" class="btn btn-outline btn-sm">Add JSON</button>
             </div>
-            <div id="templates-list" class="grid"></div>
+            <div id="list-templates" class="grid"></div>
         </div>
 
-        <!-- Resources Tab -->
-        <div id="resources-tab" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl">Resources</h2>
-                <button onclick="showTab('types', event)" class="btn btn-outline">
-                    Manage Types
-                </button>
+        <!-- Resources -->
+        <div id="tab-resources" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Resources</h2>
+                <button onclick="addResourceType()" class="btn btn-outline btn-sm">Add Type</button>
             </div>
-            <div id="resources-list" class="grid"></div>
+            <div id="list-resources" class="grid"></div>
         </div>
 
-        <!-- Resource Types Tab -->
-        <div id="types-tab" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl">Resource Types</h2>
-                <button onclick="showAddResourceTypeForm()" class="btn btn-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="mr-2">
-                        <path d="M5 12h14" />
-                        <path d="M12 5v14" />
-                    </svg>
-                    Add Type
-                </button>
-            </div>
-            <div id="types-list" class="grid"></div>
-        </div>
-
-        <!-- Config Tab -->
-        <div id="config-tab" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl">Configuration</h2>
+        <!-- Config -->
+        <div id="tab-config" class="tab-pane hidden flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Configuration</h2>
                 <div class="flex gap-2">
-                    <button onclick="loadConfig()" class="btn btn-outline">
-                        Reload
-                    </button>
-                    <button onclick="saveConfig()" class="btn btn-primary">
-                        Save Changes
-                    </button>
+                    <button onclick="loadConfig()" class="btn btn-outline btn-sm">Reload</button>
+                    <button onclick="saveConfig()" class="btn btn-primary btn-sm">Save</button>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-content" style="padding-top: 1.5rem;">
-                    <p class="text-sm text-muted-foreground mb-4">Edit the entire state JSON. Invalid JSON will be
-                        rejected.</p>
-                    <textarea id="config-editor" class="input"
-                        style="min-height: 500px; font-family: monospace; height: auto;"></textarea>
-                    <div id="config-status" class="mt-4 hidden rounded-md p-3 text-sm"></div>
-                </div>
+            <div class="card flex-1 flex flex-col">
+                <textarea id="config-editor"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none border-0 focus:outline-none"></textarea>
             </div>
+            <div id="config-msg" class="mt-2 text-sm hidden"></div>
         </div>
     </main>
 
     <script>
-        // State
-        let instances = {};
-        let templates = {};
-        let resources = {};
-        let types = {};
-        let refreshIntervalId = null;
-        let discoverRefreshIntervalId = null;
-        let freshnessIntervalId = null;
-        let discoveredProcesses = [];
-        let lastInstancesUpdate = null;
-        let lastDiscoveryUpdate = null;
-        let isDataStale = false;
-        let isPageVisible = true;
-
-        // Tab Switching
-        function showTab(tabName, event) {
-            // Update buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.setAttribute('data-state', btn.dataset.tab === tabName ? 'active' : 'inactive');
-            });
-
-            // Update content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                if (content.id === `${tabName}-tab`) {
-                    content.classList.remove('hidden');
-                    content.classList.add('block');
-                } else {
-                    content.classList.add('hidden');
-                    content.classList.remove('block');
-                }
-            });
-
-            // Load data
-            if (tabName === 'instances') loadInstances();
-            if (tabName === 'discover') discoverProcesses();
-            if (tabName === 'templates') loadTemplates();
-            if (tabName === 'resources') loadResources();
-            if (tabName === 'types') loadResourceTypes();
-            if (tabName === 'config') loadConfig();
-        }
-
-        // --- Rendering Functions ---
-
-        function renderInstances() {
-            const container = document.getElementById('instances-list');
-
-            if (Object.keys(instances).length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
-                        </div>
-                        <h3 class="text-lg font-semibold">No instances running</h3>
-                        <p class="mb-4 mt-2 text-sm text-muted-foreground">Start a new instance from a template to get started.</p>
-                        <button onclick="showTab('templates', event)" class="btn btn-primary">
-                            Go to Templates
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const html = Object.values(instances).map(i => {
-                const isRunning = i.status === 'running';
-                const statusClass = isRunning ?
-                    (isDataStale ? 'badge-warning' : 'badge-success') :
-                    (i.status === 'stopped' ? 'badge-neutral' : 'badge-error');
+        // --- View (HTML Generation) ---
+        const View = {
+            instanceCard: (i, isStale) => {
+                const running = i.status === 'running';
+                // If stale and running, show grey. Otherwise show standard colors.
+                let badge = 'badge-neutral';
+                if (running) badge = isStale ? 'badge-stale' : 'badge-success';
+                else if (i.status === 'error') badge = 'badge-error';
 
                 return `
                 <div class="card">
                     <div class="card-header">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-semibold text-lg">${i.name}</h3>
-                                <div class="badge ${statusClass}">
-                                    ${i.status}
-                                </div>
-                            </div>
-                            <div class="flex gap-1">
-                                ${isRunning ?
-                        `<button onclick="stopInstance('${i.name}')" class="btn btn-outline btn-icon" title="Stop">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
-                                    </button>` :
-                        `<button onclick="restartInstance('${i.name}')" class="btn btn-outline btn-icon" title="Start">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                    </button>`
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold">${i.name}</span>
+                            <span class="badge ${badge}">${i.status}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            ${running ?
+                        `<button onclick="apiAction('stop', '${i.name}')" class="btn btn-outline btn-icon" title="Stop">■</button>` :
+                        `<button onclick="apiAction('restart', '${i.name}')" class="btn btn-outline btn-icon" title="Start">▶</button>`
                     }
-                                <button onclick="addAsTemplate('${i.name}')" class="btn btn-outline btn-icon" title="Save as Template">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" x2="12" y1="18" y2="12"/><line x1="9" x2="15" y1="15" y2="15"/></svg>
-                                </button>
-                                <button onclick="deleteInstance('${i.name}')" class="btn btn-ghost btn-icon text-destructive" title="Delete">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                </button>
-                                ${i.action ?
-                        `<button onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}')" class="btn btn-primary btn-icon" title="Open Action">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-                                    </button>` : ''
-                    }
-                            </div>
+                            <button onclick="apiAction('delete', '${i.name}')" class="btn btn-outline btn-icon text-error-text" title="Delete">✕</button>
+                            ${i.action ? `<button onclick="window.open('${i.action}')" class="btn btn-primary btn-icon">↗</button>` : ''}
                         </div>
                     </div>
-                    <div class="card-content">
-                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                            <div>
-                                <span class="text-muted-foreground block text-xs">PID</span>
-                                <span class="font-mono text-sm">${i.pid || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <span class="text-muted-foreground block text-xs">CPU Time</span>
-                                <span class="font-mono text-sm">${formatCPUTime(i.cputime)}</span>
-                            </div>
+                    <div class="card-body text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted">PID: ${i.pid || '-'}</span>
+                            <span class="text-muted">CPU: ${formatTime(i.cputime)}</span>
                         </div>
-                        <div>
-                            <span class="text-muted-foreground text-xs">Command</span>
-                            <div class="code-block">
-                                ${i.command}
-                            </div>
+                        <div class="code-block">${i.command}</div>
+                        <div class="flex flex-wrap gap-1">
+                            ${Object.entries(i.resources || {}).map(([k, v]) => `<span class="badge badge-neutral">${k}=${v}</span>`).join('')}
                         </div>
-                        ${Object.keys(i.resources || {}).length > 0 ? `
-                            <div class="mt-1">
-                                <span class="text-muted-foreground text-xs">Resources</span>
-                                <div class="flex gap-1" style="flex-wrap: wrap; margin-top: 0.25rem;">
-                                    ${Object.entries(i.resources).map(([k, v]) =>
-                        `<span class="badge badge-neutral">
-                                            ${k}=${v}
-                                        </span>`
-                    ).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
                     </div>
-                </div>
-                `;
-            }).join('');
+                </div>`;
+            },
 
-            container.innerHTML = html;
-        }
-
-        function renderDiscovery() {
-            const container = document.getElementById('discover-list');
-            const empty = document.getElementById('discover-empty');
-
-            const filterPorts = document.getElementById('filter-ports-only').checked;
-            const filterTopLevel = document.getElementById('filter-top-level').checked;
-
-            let filtered = discoveredProcesses;
-
-            if (filterPorts) {
-                filtered = filtered.filter(p => p.ports && p.ports.length > 0);
-            }
-
-            if (filterTopLevel) {
-                filtered = filtered.filter(p => p.isTopLevel);
-            }
-
-            if (filtered.length === 0) {
-                container.innerHTML = '';
-                empty.classList.remove('hidden');
-                return;
-            }
-
-            empty.classList.add('hidden');
-
-            const html = filtered.map(p => {
-                const portsToShow = p.isTopLevel && p.allPorts ? Array.from(p.allPorts) : (p.ports || []);
-
-                return `
+            discoveryCard: (p) => `
                 <div class="card">
                     <div class="card-header">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-semibold text-lg">${p.name || 'Unknown'}</h3>
-                                ${p.isTopLevel ? '<span class="badge badge-neutral">Top</span>' : ''}
-                            </div>
-                            <button onclick="monitorProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn btn-primary" style="height: 2rem; padding: 0 0.75rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                Add
-                            </button>
-                        </div>
+                        <span class="font-semibold truncate">${p.name || 'Unknown'}</span>
+                        <button onclick="monitorProcess(${p.pid}, '${escape(p.command)}')" class="btn btn-primary btn-sm">Add</button>
                     </div>
-                    <div class="card-content">
-                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                            <div>
-                                <span class="text-muted-foreground block text-xs">PID</span>
-                                <span class="font-mono text-sm">${p.pid}</span>
-                            </div>
-                            <div>
-                                <span class="text-muted-foreground block text-xs">Ports</span>
-                                <span class="font-mono text-sm">${portsToShow.length > 0 ? portsToShow.join(', ') : '-'}</span>
-                            </div>
+                    <div class="card-body text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted">PID: ${p.pid}</span>
+                            <span class="text-muted">Ports: ${p.ports?.join(',') || '-'}</span>
                         </div>
-                        <div>
-                            <span class="text-muted-foreground text-xs">Command</span>
-                            <div class="code-block">
-                                ${p.command}
-                            </div>
-                        </div>
+                        <div class="code-block">${p.command}</div>
                     </div>
-                </div>
-                `;
-            }).join('');
+                </div>`,
 
-            container.innerHTML = html;
+            templateCard: (t) => `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="font-semibold">${t.label || t.id}</span>
+                        <button onclick="startTemplate('${t.id}')" class="btn btn-primary btn-sm">Launch</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="code-block">${t.command}</div>
+                    </div>
+                </div>`,
+
+            resourceCard: (type, list) => `
+                <div class="card">
+                    <div class="card-header"><span class="font-semibold">${type}</span></div>
+                    <div class="card-body flex flex-col gap-2">
+                        ${list.map(r => `<div class="flex justify-between text-sm border p-2 rounded"><span>${r.value}</span><span class="text-muted">→ ${r.owner}</span></div>`).join('')}
+                    </div>
+                </div>`,
+
+            empty: (msg) => `<div class="p-4 text-center text-muted">${msg}</div>`
+        };
+
+        // --- State ---
+        const state = {
+            instances: {},
+            templates: {},
+            resources: {},
+            discovery: [],
+            lastUpdate: { instances: 0, discover: 0 },
+            activeTab: 'instances'
+        };
+
+        // --- Controller / Logic ---
+
+        // Theme
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('theme-icon');
+            if (isDark) icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+            else icon.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/>';
+        }
+        if (localStorage.theme === 'dark' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+        updateThemeIcon();
+
+        // Tabs
+        function setTab(tab) {
+            state.activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+
+            if (tab === 'instances') loadInstances();
+            else if (tab === 'discover') discoverProcesses();
+            else if (tab === 'templates') loadTemplates();
+            else if (tab === 'resources') loadResources();
+            else if (tab === 'config') loadConfig();
         }
 
-        // --- Logic Functions (Preserved) ---
-
-        function formatCPUTime(seconds) {
-            if (!seconds) return '-';
-            if (seconds < 60) return seconds.toFixed(2) + 's';
-            if (seconds < 3600) {
-                const m = Math.floor(seconds / 60);
-                const s = Math.floor(seconds % 60);
-                return `${m}m ${s}s`;
+        // API
+        async function fetchAPI(endpoint, method = 'GET', body = null) {
+            try {
+                const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(endpoint, opts);
+                if (!res.ok) throw new Error(await res.text());
+                return await res.json();
+            } catch (e) {
+                console.error(e);
+                return null;
             }
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            return `${h}h ${m}m`;
         }
-
-        function truncate(str, n) {
-            return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-
-        function escapeQuotes(str) {
-            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        }
-
-        // --- API Interactions ---
 
         async function loadInstances() {
-            try {
-                const res = await fetch('/api/instances');
-                instances = await res.json() || {};
-                lastInstancesUpdate = Date.now();
-                isDataStale = false;
+            const data = await fetchAPI('/api/instances');
+            if (data) {
+                state.instances = data;
+                state.lastUpdate.instances = Date.now();
                 renderInstances();
-                updateFreshnessIndicators();
-            } catch (err) {
-                console.error("Failed to load instances", err);
             }
         }
 
         async function discoverProcesses() {
-            try {
-                const res = await fetch('/api/discover');
-                const data = await res.json();
-                discoveredProcesses = data || [];
-                lastDiscoveryUpdate = Date.now();
-
-                // Process hierarchy logic
-                const processMap = {};
-                const childrenMap = {};
-                const shells = ['sh', 'bash', 'zsh', 'fish', 'sudo', 'su'];
-
-                discoveredProcesses.forEach(p => {
-                    processMap[p.pid] = p;
-                    p.allPorts = new Set(p.ports || []);
-                });
-
-                discoveredProcesses.forEach(p => {
-                    if (p.ppid && processMap[p.ppid]) {
-                        if (!childrenMap[p.ppid]) childrenMap[p.ppid] = [];
-                        childrenMap[p.ppid].push(p);
-                    }
-                });
-
-                discoveredProcesses.forEach(p => {
-                    const parent = processMap[p.ppid];
-                    if (parent) {
-                        const parentName = parent.name || '';
-                        if (shells.includes(parentName)) {
-                            p.isTopLevel = true;
-                            function aggregateChildPorts(proc) {
-                                const children = childrenMap[proc.pid] || [];
-                                children.forEach(child => {
-                                    (child.ports || []).forEach(port => p.allPorts.add(port));
-                                    aggregateChildPorts(child);
-                                });
-                            }
-                            aggregateChildPorts(p);
-                        }
-                    }
-                });
-
+            const data = await fetchAPI('/api/discover');
+            if (data) {
+                state.discovery = data;
+                state.lastUpdate.discover = Date.now();
                 renderDiscovery();
-                updateFreshnessIndicators();
-            } catch (err) {
-                console.error("Failed to discover processes", err);
             }
-        }
-
-        function applyDiscoveryFilters() {
-            renderDiscovery();
         }
 
         async function loadTemplates() {
-            const res = await fetch('/api/templates');
-            templates = await res.json() || {};
-
-            const list = document.getElementById('templates-list');
-            const html = Object.values(templates).map(t => `
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="font-semibold text-lg">${t.label || t.id}</h3>
-                        <p class="text-sm text-muted-foreground">ID: ${t.id}</p>
-                    </div>
-                    <div class="card-content">
-                        <div class="mb-4">
-                            <span class="text-muted-foreground text-xs">Command</span>
-                            <div class="code-block">
-                                ${t.command}
-                            </div>
-                        </div>
-                        <div class="flex justify-end">
-                            <button onclick="startFromTemplate('${t.id}')" class="btn btn-primary">
-                                Create Instance
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            list.innerHTML = html;
+            state.templates = await fetchAPI('/api/templates') || {};
+            renderTemplates();
         }
 
         async function loadResources() {
-            const res = await fetch('/api/resources');
-            resources = await res.json() || {};
-
-            const list = document.getElementById('resources-list');
-            if (Object.keys(resources).length === 0) {
-                list.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No resources allocated</div>';
-                return;
-            }
-
-            const html = Object.entries(resources).map(([type, resList]) => `
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="font-semibold text-lg">${type}</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="flex flex-col gap-2">
-                            ${resList.map(r => `
-                                <div class="flex items-center justify-between rounded-md border p-2 text-sm">
-                                    <span class="font-mono font-medium">${r.value}</span>
-                                    <span class="text-muted-foreground text-xs">→ ${r.owner}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            list.innerHTML = html;
-        }
-
-        async function loadResourceTypes() {
-            const res = await fetch('/api/resource-types');
-            types = await res.json() || {};
-
-            const list = document.getElementById('types-list');
-            const html = Object.values(types).map(t => `
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="font-semibold text-lg">${t.name}</h3>
-                    </div>
-                    <div class="card-content text-sm flex flex-col gap-2">
-                        <div class="flex justify-between">
-                            <span class="text-muted-foreground">Check</span>
-                            <span class="font-mono">${t.check || '(none)'}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-muted-foreground">Counter</span>
-                            <span>${t.counter ? 'Yes' : 'No'}</span>
-                        </div>
-                        ${t.counter ? `
-                        <div class="flex justify-between">
-                            <span class="text-muted-foreground">Range</span>
-                            <span>${t.start} - ${t.end}</span>
-                        </div>` : ''}
-                    </div>
-                </div>
-            `).join('');
-            list.innerHTML = html;
+            state.resources = await fetchAPI('/api/resources') || {};
+            state.types = await fetchAPI('/api/resource-types') || {};
+            renderResources();
         }
 
         async function loadConfig() {
-            const res = await fetch('/api/config');
-            const config = await res.json();
-            document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+            const cfg = await fetchAPI('/api/config');
+            document.getElementById('config-editor').value = JSON.stringify(cfg, null, 2);
         }
 
         async function saveConfig() {
-            const json = document.getElementById('config-editor').value;
-            const status = document.getElementById('config-status');
             try {
+                const json = document.getElementById('config-editor').value;
                 JSON.parse(json); // Validate
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: json
-                });
-                if (res.ok) {
-                    status.textContent = 'Configuration saved successfully';
-                    status.className = 'mt-4 rounded-md p-3 text-sm block';
-                    status.style.backgroundColor = 'var(--success-bg)';
-                    status.style.color = 'var(--success-text)';
-                } else {
-                    throw new Error(await res.text());
-                }
-            } catch (err) {
-                status.textContent = 'Error: ' + err.message;
-                status.className = 'mt-4 rounded-md p-3 text-sm block';
-                status.style.backgroundColor = 'var(--error-bg)';
-                status.style.color = 'var(--error-text)';
+                await fetchAPI('/api/config', 'POST', JSON.parse(json));
+                showMsg('Saved!', 'success');
+            } catch (e) {
+                showMsg(e.message, 'error');
             }
-            setTimeout(() => status.classList.add('hidden'), 3000);
         }
 
-        // --- Actions ---
+        function showMsg(msg, type) {
+            const el = document.getElementById('config-msg');
+            el.textContent = msg;
+            el.className = `mt-2 text-sm block ${type === 'error' ? 'text-error-text' : 'text-success-text'}`;
+            setTimeout(() => el.classList.add('hidden'), 3000);
+        }
 
-        async function startFromTemplate(templateId) {
-            if (Object.keys(templates).length === 0) await loadTemplates();
-            const template = templates[templateId];
-            if (!template) return alert('Template not found');
+        // Rendering Calls
+        function renderInstances() {
+            const list = document.getElementById('list-instances');
+            const age = Date.now() - state.lastUpdate.instances;
+            const isStale = age > 6000;
 
-            const name = prompt('Instance name:');
+            const items = Object.values(state.instances);
+            if (items.length === 0) list.innerHTML = View.empty('No instances');
+            else list.innerHTML = items.map(i => View.instanceCard(i, isStale)).join('');
+        }
+
+        function renderDiscovery() {
+            const list = document.getElementById('list-discover');
+            const portsOnly = document.getElementById('filter-ports').checked;
+            const items = state.discovery.filter(p => !portsOnly || (p.ports && p.ports.length));
+
+            if (items.length === 0) list.innerHTML = View.empty('No processes found');
+            else list.innerHTML = items.map(p => View.discoveryCard(p)).join('');
+        }
+
+        function renderTemplates() {
+            const items = Object.values(state.templates);
+            const list = document.getElementById('list-templates');
+            if (items.length === 0) list.innerHTML = View.empty('No templates');
+            else list.innerHTML = items.map(t => View.templateCard(t)).join('');
+        }
+
+        function renderResources() {
+            const items = Object.entries(state.resources);
+            const list = document.getElementById('list-resources');
+            if (items.length === 0) list.innerHTML = View.empty('No resources');
+            else list.innerHTML = items.map(([t, l]) => View.resourceCard(t, l)).join('');
+        }
+
+        // Actions
+        async function apiAction(action, id) {
+            if (action === 'delete' && !confirm('Delete?')) return;
+            await fetchAPI('/api/instances', 'POST', { action, instance_id: id });
+            loadInstances();
+        }
+
+        async function startTemplate(id) {
+            const t = state.templates[id];
+            const name = prompt('Name:');
             if (!name) return;
 
             const vars = {};
-            const varsToPrompt = new Set();
-            if (template.vars) Object.keys(template.vars).forEach(k => varsToPrompt.add(k));
+            const needed = new Set(Object.keys(t.vars || {}));
+            (t.command.match(/\${([^}]+)}/g) || []).forEach(m => needed.add(m.slice(2, -1)));
 
-            const regex = /\${([^}]+)}/g;
-            let match;
-            while ((match = regex.exec(template.command)) !== null) {
-                varsToPrompt.add(match[1]);
+            for (const k of needed) {
+                const v = prompt(`${k}:`, t.vars?.[k] || '');
+                if (v === null) return;
+                vars[k] = v;
             }
 
-            for (const key of varsToPrompt) {
-                const defaultVal = (template.vars && template.vars[key]) || '';
-                const val = prompt(`${key} (default: ${defaultVal}):`, defaultVal);
-                if (val !== null) vars[key] = val;
-                else return;
-            }
-
-            startInstance(templateId, name, vars);
+            await fetchAPI('/api/instances', 'POST', { action: 'start', template: id, name, vars });
+            await loadInstances(); // Explicit refresh
+            setTab('instances');
         }
 
-        function showStartForm() {
-            const templateId = prompt('Template ID:');
-            if (!templateId) return;
-            startFromTemplate(templateId);
-        }
-
-        async function startInstance(templateId, name, vars) {
-            try {
-                const res = await fetch('/api/instances', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'start', template: templateId, name: name, vars: vars || {} })
-                });
-                if (!res.ok) throw new Error(await res.text());
-                loadInstances();
-            } catch (err) {
-                alert('Error: ' + err.message);
+        async function monitorProcess(pid, cmd) {
+            const name = prompt('Name:', cmd.split(' ')[0].split('/').pop() + '-' + pid);
+            if (name) {
+                await fetchAPI('/api/monitor', 'POST', { pid, name });
+                await loadInstances();
+                setTab('instances');
             }
         }
 
-        async function stopInstance(name) {
-            if (!confirm(`Stop instance "${name}"?`)) return;
-            try {
-                await fetch('/api/instances', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'stop', instance_id: name })
-                });
-                loadInstances();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
+        function addTemplate() {
+            const json = prompt('Template JSON:');
+            if (json) fetchAPI('/api/templates', 'POST', JSON.parse(json)).then(loadTemplates);
         }
 
-        async function restartInstance(name) {
-            try {
-                const res = await fetch('/api/instances', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'restart', instance_id: name })
-                });
-                if (!res.ok) throw new Error(await res.text());
-                loadInstances();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
+        function addResourceType() {
+            const name = prompt('Type Name:');
+            if (name) fetchAPI('/api/resource-types', 'POST', { name }).then(loadResources);
         }
 
-        async function deleteInstance(name) {
-            if (!confirm(`Delete instance "${name}"?`)) return;
-            try {
-                await fetch('/api/instances', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'delete', instance_id: name })
-                });
-                loadInstances();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
+        // Utils
+        function formatTime(s) {
+            if (!s) return '-';
+            if (s < 60) return s.toFixed(1) + 's';
+            return (s / 60).toFixed(1) + 'm';
         }
+        function escape(s) { return s.replace(/'/g, "\\'"); }
 
-        async function executeAction(instanceName, action) {
-            const urlPattern = /^(https?:\/\/|http:\/\/)/i;
-            if (urlPattern.test(action)) {
-                window.open(action, '_blank');
-            } else {
-                try {
-                    const res = await fetch('/api/execute-action', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ instance_name: instanceName })
-                    });
-                    if (!res.ok) alert('Error: ' + await res.text());
-                } catch (err) {
-                    alert('Error: ' + err.message);
-                }
-            }
-        }
-
-        async function addAsTemplate(name) {
-            const instance = instances[name];
-            if (!instance) return alert('Instance not found');
-            const templateId = prompt('Template ID:', instance.name + '-template');
-            if (!templateId) return;
-            const template = {
-                id: templateId,
-                label: 'Template from ' + instance.name,
-                command: instance.command,
-                resources: Object.keys(instance.resources || {}),
-                vars: instance.vars || {}
-            };
-            try {
-                const res = await fetch('/api/templates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(template)
-                });
-                if (!res.ok) throw new Error(await res.text());
-                loadTemplates();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
-
-        function showAddTemplateForm() {
-            const json = prompt('Paste template JSON:');
-            if (!json) return;
-            try {
-                fetch('/api/templates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: json
-                }).then(() => loadTemplates());
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
-
-        function showAddResourceTypeForm() {
-            const name = prompt('Resource type name:');
-            if (!name) return;
-            const check = prompt('Check command (use ${value}):');
-            const counter = confirm('Is this a counter resource?');
-            let start = 0, end = 0;
-            if (counter) {
-                start = parseInt(prompt('Start value:')) || 0;
-                end = parseInt(prompt('End value:')) || 0;
-            }
-            fetch('/api/resource-types', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, check, counter, start, end })
-            }).then(() => loadResourceTypes());
-        }
-
-        async function monitorProcess(pid, command) {
-            const cmdParts = command.split(' ');
-            const cmdName = cmdParts[0].split('/').pop();
-            const name = prompt(`Add process as:`, `${cmdName}-${pid}`);
-            if (!name) return;
-            try {
-                const res = await fetch('/api/monitor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pid: pid, name: name })
-                });
-                if (!res.ok) throw new Error(await res.text());
-                discoverProcesses();
-                loadInstances();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
-
-        // --- Intervals & Freshness ---
-
-        function updateFreshnessIndicators() {
+        // Loop
+        setInterval(() => {
             const now = Date.now();
-            if (lastInstancesUpdate) {
-                const age = (now - lastInstancesUpdate) / 1000;
-                const dot = document.getElementById('instances-freshness-dot');
-                const text = document.getElementById('instances-freshness-text');
-                if (age < 5) {
-                    dot.className = 'status-dot fresh';
-                    text.textContent = 'Live';
+            const auto = document.getElementById('auto-refresh').checked;
+            const visible = !document.hidden;
+
+            // Update Counters
+            ['instances', 'discover'].forEach(key => {
+                const last = state.lastUpdate[key];
+                const elDot = document.getElementById(`status-${key}`);
+                const elText = document.getElementById(`text-${key}`);
+                if (!elDot) return;
+
+                if (last === 0) {
+                    elDot.className = 'status-dot stale';
+                    elText.textContent = 'Not loaded';
                 } else {
-                    dot.className = 'status-dot stale';
-                    text.textContent = `${age.toFixed(0)}s ago`;
-                }
-            }
-            if (lastDiscoveryUpdate) {
-                const age = (now - lastDiscoveryUpdate) / 1000;
-                const dot = document.getElementById('discovery-freshness-dot');
-                const text = document.getElementById('discovery-freshness-text');
-                if (age < 5) {
-                    dot.className = 'status-dot fresh';
-                    text.textContent = 'Fresh';
-                } else {
-                    dot.className = 'status-dot stale';
-                    text.textContent = `${age.toFixed(0)}s ago`;
-                }
-            }
-        }
-
-        function checkStaleness() {
-            if (!lastInstancesUpdate) return;
-            const interval = parseFloat(document.getElementById('refresh-interval').value);
-            if (interval <= 0) return;
-            const timeSinceRefresh = (Date.now() - lastInstancesUpdate) / 1000;
-            const wasStale = isDataStale;
-            isDataStale = timeSinceRefresh >= (interval + 5);
-            if (wasStale !== isDataStale) renderInstances();
-        }
-
-        function updateRefreshInterval() {
-            const interval = parseFloat(document.getElementById('refresh-interval').value);
-            const enabled = document.getElementById('auto-refresh-enable').checked;
-            if (refreshIntervalId) clearInterval(refreshIntervalId);
-            if (enabled && interval > 0 && isPageVisible) {
-                refreshIntervalId = setInterval(loadInstances, interval * 1000);
-            }
-        }
-
-        function updateDiscoveryRefreshInterval() {
-            const interval = parseFloat(document.getElementById('discover-refresh-interval').value);
-            const enabled = document.getElementById('discover-auto-refresh-enable').checked;
-            if (discoverRefreshIntervalId) clearInterval(discoverRefreshIntervalId);
-            if (enabled && interval > 0 && isPageVisible) {
-                discoverRefreshIntervalId = setInterval(discoverProcesses, interval * 1000);
-            }
-        }
-
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('refresh-interval').addEventListener('change', updateRefreshInterval);
-            document.getElementById('auto-refresh-enable').addEventListener('change', updateRefreshInterval);
-            document.getElementById('discover-refresh-interval').addEventListener('change', updateDiscoveryRefreshInterval);
-            document.getElementById('discover-auto-refresh-enable').addEventListener('change', updateDiscoveryRefreshInterval);
-
-            document.addEventListener('visibilitychange', () => {
-                isPageVisible = !document.hidden;
-                updateRefreshInterval();
-                updateDiscoveryRefreshInterval();
-                if (isPageVisible) {
-                    loadInstances();
+                    const age = (now - last) / 1000;
+                    if (age < 6) { // Match stale threshold
+                        elDot.className = 'status-dot live';
+                        elText.textContent = `Live (${age.toFixed(0)}s)`;
+                    } else {
+                        elDot.className = 'status-dot stale';
+                        elText.textContent = `Stale (${age.toFixed(0)}s)`;
+                    }
                 }
             });
 
-            setInterval(updateFreshnessIndicators, 1000);
-            setInterval(checkStaleness, 1000);
+            // Re-render instances to update stale badges if needed
+            if (state.activeTab === 'instances' && state.lastUpdate.instances > 0) {
+                const age = now - state.lastUpdate.instances;
+                // Only re-render if we cross the stale threshold to avoid flickering
+                // Or just re-render every second? Re-rendering is cheap here.
+                renderInstances();
+            }
 
-            loadInstances();
-        });
+            // Auto Refresh
+            if (auto && visible) {
+                if (state.activeTab === 'instances' && (now - state.lastUpdate.instances > 1000)) loadInstances();
+                if (state.activeTab === 'discover' && (now - state.lastUpdate.discover > 2000)) discoverProcesses();
+            }
+        }, 1000);
+
+        // Init
+        loadInstances();
     </script>
 </body>
 
