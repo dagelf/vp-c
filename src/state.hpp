@@ -40,6 +40,12 @@ public:
     bool lastDiscoveryHadPorts = false;
     std::mutex discoveryMutex;
 
+    // Serialize to JSON
+    std::string toJson() const;
+
+    // Deserialize from JSON
+    bool fromJson(const std::string& json);
+
 private:
     std::mutex mutex_;
     int inotify_fd_;
@@ -50,12 +56,6 @@ private:
 
     // Load default resource types
     void loadDefaultResourceTypes();
-
-    // Serialize to JSON
-    std::string toJson() const;
-
-    // Deserialize from JSON
-    bool fromJson(const std::string& json);
 
     // Get state file path
     static std::string getStateFilePath();

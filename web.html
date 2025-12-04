@@ -1036,18 +1036,44 @@
             if (tabName === 'config') loadConfig();
         }
 
-        function startFromTemplate(templateId) {
+        async function startFromTemplate(templateId) {
+            // Ensure templates are loaded
+            if (Object.keys(templates).length === 0) {
+                await loadTemplates();
+            }
+
+            const template = templates[templateId];
+            if (!template) {
+                alert('Template not found');
+                return;
+            }
+
             const name = prompt('Instance name:');
             if (!name) return;
 
-            const template = templates[templateId];
             const vars = {};
+            const varsToPrompt = new Set();
 
-            // Ask for any default vars
+            // Add vars from template definition
             if (template.vars) {
-                for (const [key, defaultVal] of Object.entries(template.vars)) {
-                    const val = prompt(`${key} (default: ${defaultVal}):`);
-                    if (val) vars[key] = val;
+                Object.keys(template.vars).forEach(k => varsToPrompt.add(k));
+            }
+
+            // Add vars from command placeholders
+            const regex = /\${([^}]+)}/g;
+            let match;
+            while ((match = regex.exec(template.command)) !== null) {
+                varsToPrompt.add(match[1]);
+            }
+
+            // Prompt for all vars
+            for (const key of varsToPrompt) {
+                const defaultVal = (template.vars && template.vars[key]) || '';
+                const val = prompt(`${key} (default: ${defaultVal}):`, defaultVal);
+                if (val !== null) { // Allow empty string if user accepts default (or empty)
+                     vars[key] = val;
+                } else {
+                    return; // User cancelled
                 }
             }
 

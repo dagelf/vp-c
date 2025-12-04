@@ -176,13 +176,106 @@ bool State::save() {
 }
 
 std::string State::toJson() const {
-    // This method is now deprecated in favor of direct JSON serialization in save()
-    return "{}";
+    json j;
+
+    // Serialize instances
+    json instances_json = json::object();
+    for (const auto& [key, value] : instances) {
+        instances_json[key] = *value;
+    }
+    j["instances"] = instances_json;
+
+    // Serialize templates
+    json templates_json = json::object();
+    for (const auto& [key, value] : templates) {
+        templates_json[key] = *value;
+    }
+    j["templates"] = templates_json;
+
+    // Serialize resources
+    json resources_json = json::object();
+    for (const auto& [key, value] : resources) {
+        resources_json[key] = *value;
+    }
+    j["resources"] = resources_json;
+
+    // Serialize counters
+    j["counters"] = counters;
+
+    // Serialize types
+    json types_json = json::object();
+    for (const auto& [key, value] : types) {
+        types_json[key] = *value;
+    }
+    j["types"] = types_json;
+
+    // Serialize remotes_allowed
+    j["remotes_allowed"] = remotesAllowed;
+
+    return j.dump(2);
 }
 
-bool State::fromJson(const std::string& /*json_str*/) {
-    // This method is now deprecated in favor of direct JSON parsing in load()
-    return true;
+bool State::fromJson(const std::string& json_str) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+        json j = json::parse(json_str);
+
+        // Load instances
+        if (j.contains("instances") && j["instances"].is_object()) {
+            instances.clear();
+            for (auto& [key, value] : j["instances"].items()) {
+                auto inst = std::make_shared<Instance>();
+                *inst = value.get<Instance>();
+                instances[key] = inst;
+            }
+        }
+
+        // Load templates
+        if (j.contains("templates") && j["templates"].is_object()) {
+            templates.clear();
+            for (auto& [key, value] : j["templates"].items()) {
+                auto tmpl = std::make_shared<Template>();
+                *tmpl = value.get<Template>();
+                templates[key] = tmpl;
+            }
+        }
+
+        // Load resources
+        if (j.contains("resources") && j["resources"].is_object()) {
+            resources.clear();
+            for (auto& [key, value] : j["resources"].items()) {
+                auto res = std::make_shared<Resource>();
+                *res = value.get<Resource>();
+                resources[key] = res;
+            }
+        }
+
+        // Load counters
+        if (j.contains("counters") && j["counters"].is_object()) {
+            counters = j["counters"].get<std::map<std::string, int>>();
+        }
+
+        // Load types
+        if (j.contains("types") && j["types"].is_object()) {
+            types.clear();
+            for (auto& [key, value] : j["types"].items()) {
+                auto rt = std::make_shared<ResourceType>();
+                *rt = value.get<ResourceType>();
+                types[key] = rt;
+            }
+        }
+
+        // Load remotes_allowed
+        if (j.contains("remotes_allowed") && j["remotes_allowed"].is_object()) {
+            remotesAllowed = j["remotes_allowed"].get<std::map<std::string, bool>>();
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 void State::claimResource(const std::string& rtype, const std::string& value, const std::string& owner) {

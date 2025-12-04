@@ -135,9 +135,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
 
     // GET /api/config - Get configuration
     if (path == "/api/config" && method == "GET") {
-        json config_json;
-        config_json["auto_refresh_interval"] = 5000;
-        std::string body_str = config_json.dump(2);
+        std::string body_str = g_state->toJson();
 
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: application/json\r\n";
@@ -145,6 +143,28 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         response << "Content-Length: " << body_str.length() << "\r\n";
         response << "\r\n";
         response << body_str;
+        return response.str();
+    }
+
+    // POST /api/config - Update configuration
+    if (path == "/api/config" && method == "POST") {
+        if (g_state->fromJson(body)) {
+            g_state->save();
+            response << "HTTP/1.1 200 OK\r\n";
+            response << "Content-Type: application/json\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
+            response << "Content-Length: 2\r\n";
+            response << "\r\n";
+            response << "{}";
+        } else {
+            std::string error = "Invalid configuration JSON";
+            response << "HTTP/1.1 400 Bad Request\r\n";
+            response << "Content-Type: text/plain\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
+            response << "Content-Length: " << error.length() << "\r\n";
+            response << "\r\n";
+            response << error;
+        }
         return response.str();
     }
 
@@ -511,31 +531,75 @@ std::string handleRequest(const std::string& method, const std::string& path, co
 }
 
 void handleClient(int clientSocket) {
+    std::string request;
     char buffer[4096];
-    ssize_t bytesRead = read(clientSocket, buffer, sizeof(buffer) - 1);
+    size_t contentLength = 0;
+    bool headersComplete = false;
+    size_t bodyPos = std::string::npos;
 
-    if (bytesRead > 0) {
-        buffer[bytesRead] = '\0';
+    while (true) {
+        ssize_t bytesRead = read(clientSocket, buffer, sizeof(buffer));
+        if (bytesRead <= 0) break;
 
-        // Parse HTTP request
-        std::string request(buffer);
+        request.append(buffer, bytesRead);
+
+        if (!headersComplete) {
+            bodyPos = request.find("\r\n\r\n");
+            if (bodyPos != std::string::npos) {
+                headersComplete = true;
+                
+                // Parse Content-Length (case-insensitive)
+                std::string headers = request.substr(0, bodyPos);
+                std::string clHeader = "content-length: ";
+                
+                auto it = std::search(
+                    headers.begin(), headers.end(),
+                    clHeader.begin(), clHeader.end(),
+                    [](char a, char b) {
+                        return std::tolower(a) == std::tolower(b);
+                    }
+                );
+
+                if (it != headers.end()) {
+                    size_t valStart = std::distance(headers.begin(), it) + clHeader.length();
+                    size_t valEnd = headers.find("\r\n", valStart);
+                    if (valEnd != std::string::npos) {
+                        try {
+                            contentLength = std::stoul(headers.substr(valStart, valEnd - valStart));
+                        } catch (...) {
+                            contentLength = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (headersComplete) {
+            if (request.length() >= bodyPos + 4 + contentLength) {
+                break;
+            }
+        }
+    }
+
+    if (!request.empty()) {
         std::istringstream iss(request);
         std::string method, path, version;
         iss >> method >> path >> version;
 
-        // Find request body
         std::string body;
-        size_t bodyPos = request.find("\r\n\r\n");
-        if (bodyPos != std::string::npos) {
+        if (bodyPos != std::string::npos && request.length() > bodyPos + 4) {
             body = request.substr(bodyPos + 4);
         }
 
-        // Handle request
         std::string response = handleRequest(method, path, body);
-
-        // Send response
-        ssize_t written = write(clientSocket, response.c_str(), response.length());
-        (void)written; // Suppress unused warning
+        
+        // Write response in chunks if needed (though write usually handles it)
+        size_t totalWritten = 0;
+        while (totalWritten < response.length()) {
+            ssize_t written = write(clientSocket, response.c_str() + totalWritten, response.length() - totalWritten);
+            if (written <= 0) break;
+            totalWritten += written;
+        }
     }
 
     close(clientSocket);
