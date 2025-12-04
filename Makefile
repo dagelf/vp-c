@@ -60,7 +60,7 @@ EQUALS = =
 CMAKE_SOURCE_DIR = /home/coenraad/vibeprocess/vp-c
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/coenraad/vibeprocess/vp-c
+CMAKE_BINARY_DIR = /home/coenraad/vp-c
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -132,9 +132,9 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/coenraad/vibeprocess/vp-c/CMakeFiles /home/coenraad/vibeprocess/vp-c//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/coenraad/vp-c/CMakeFiles /home/coenraad/vp-c//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/coenraad/vibeprocess/vp-c/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/coenraad/vp-c/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

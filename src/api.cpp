@@ -151,7 +151,11 @@ std::string handleRequest(const std::string& method, const std::string& path, co
     // GET /api/discover - Discover processes
     if (path.find("/api/discover") == 0 && method == "GET") {
         bool portsOnly = path.find("ports_only=true") != std::string::npos;
-        auto discovered = discoverProcesses(g_state, true, false);
+        // Use cache if available (2 seconds max age)
+        auto discovered = discoverProcesses(g_state, true, portsOnly, 2);
+        
+        // Also update managed instances using this fresh data
+        matchAndUpdateInstances(g_state, &discovered);
 
         json result_json = json::array();
         for (const auto& proc : discovered) {

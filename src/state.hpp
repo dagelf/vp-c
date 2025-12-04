@@ -34,6 +34,12 @@ public:
     std::map<std::string, std::shared_ptr<ResourceType>> types;    // Resource type definitions
     std::map<std::string, bool> remotesAllowed;                    // origin -> allowed
 
+    // Discovery cache
+    std::vector<std::map<std::string, std::string>> lastDiscovery;
+    time_t lastDiscoveryTime = 0;
+    bool lastDiscoveryHadPorts = false;
+    std::mutex discoveryMutex;
+
 private:
     std::mutex mutex_;
     int inotify_fd_;

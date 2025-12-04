@@ -35,11 +35,15 @@ std::shared_ptr<Instance> discoverAndImportProcess(std::shared_ptr<State> state,
 // Discover and import a process on a port
 std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> state, int port, const std::string& name);
 
-// Discover all running processes
-std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly);
+// Discover running processes
+// includePorts: if true, also scan for listening ports (expensive)
+// portsOnly: if true, only return processes that have listening ports
+// maxAgeSeconds: maximum age of cached results to use (0 = force refresh)
+std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly, int maxAgeSeconds = 2);
 
-// Match and update instances with running processes
-bool matchAndUpdateInstances(std::shared_ptr<State> state);
+// Match stopped instances with running processes and update status
+// preDiscovered: optional pointer to already discovered processes to use
+bool matchAndUpdateInstances(std::shared_ptr<State> state, const std::vector<std::map<std::string, std::string>>* preDiscovered = nullptr);
 
 // Execute an action command
 bool executeAction(const std::string& action);

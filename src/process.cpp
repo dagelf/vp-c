@@ -377,11 +377,62 @@ std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> 
     return inst;
 }
 
-std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly) {
-    std::vector<std::map<std::string, std::string>> result;
+std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_ptr<State> state, bool includePorts, bool portsOnly, int maxAgeSeconds) {
+    std::lock_guard<std::mutex> lock(state->discoveryMutex);
+    time_t now = time(nullptr);
 
-    // Build port map ONCE for all processes (major optimization)
+    // Check cache
+    bool cacheValid = (now - state->lastDiscoveryTime) < maxAgeSeconds;
+    
+    // If cache is valid, we might need to upgrade it with ports
+    if (cacheValid) {
+        if (includePorts && !state->lastDiscoveryHadPorts) {
+            // Need to add ports to cached processes
+            auto portMap = buildPortToProcessMap();
+            
+            for (auto& proc : state->lastDiscovery) {
+                try {
+                    int pid = std::stoi(proc["pid"]);
+                    std::vector<std::string> ports;
+                    
+                    for (const auto& [port, pids] : portMap) {
+                        for (int p : pids) {
+                            if (p == pid) {
+                                ports.push_back(std::to_string(port));
+                            }
+                        }
+                    }
+                    
+                    if (!ports.empty()) {
+                        std::string portsStr;
+                        for (size_t i = 0; i < ports.size(); ++i) {
+                            if (i > 0) portsStr += ",";
+                            portsStr += ports[i];
+                        }
+                        proc["ports"] = portsStr;
+                    }
+                } catch (...) {}
+            }
+            state->lastDiscoveryHadPorts = true;
+        }
+        
+        // Return cached result (filtered if portsOnly)
+        if (portsOnly) {
+            std::vector<std::map<std::string, std::string>> filtered;
+            for (const auto& proc : state->lastDiscovery) {
+                if (proc.count("ports") && !proc.at("ports").empty()) {
+                    filtered.push_back(proc);
+                }
+            }
+            return filtered;
+        }
+        return state->lastDiscovery;
+    }
+
+    // Cache invalid, perform full scan
+    std::vector<std::map<std::string, std::string>> processes;
     std::map<int, std::vector<int>> portMap;
+
     if (includePorts) {
         portMap = buildPortToProcessMap();
     }
@@ -389,7 +440,7 @@ std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_pt
     // Read all PIDs from /proc
     DIR* procDir = opendir("/proc");
     if (!procDir) {
-        return result;
+        return processes;
     }
 
     struct dirent* entry;
@@ -511,14 +562,19 @@ std::vector<std::map<std::string, std::string>> discoverProcesses(std::shared_pt
             procMap["ports"] = "";
         }
 
-        result.push_back(procMap);
+        processes.push_back(procMap);
     }
 
     closedir(procDir);
-    return result;
+    // Update cache
+    state->lastDiscovery = processes;
+    state->lastDiscoveryTime = now;
+    state->lastDiscoveryHadPorts = includePorts;
+
+    return processes;
 }
 
-bool matchAndUpdateInstances(std::shared_ptr<State> state) {
+bool matchAndUpdateInstances(std::shared_ptr<State> state, const std::vector<std::map<std::string, std::string>>* preDiscovered) {
     // Update CPU time and check if processes are still running
     for (auto& kv : state->instances) {
         auto& inst = kv.second;
@@ -539,7 +595,17 @@ bool matchAndUpdateInstances(std::shared_ptr<State> state) {
 
     // Check if any stopped instances are actually running
     // We do this by discovering all processes (without ports first) and matching
-    auto processes = discoverProcesses(state, false, false);
+    // If preDiscovered is provided, use it. Otherwise discover (with caching).
+    std::vector<std::map<std::string, std::string>> localProcesses;
+    const std::vector<std::map<std::string, std::string>>* processesPtr = preDiscovered;
+    
+    if (!processesPtr) {
+        // Use cache if available (2 seconds max age)
+        localProcesses = discoverProcesses(state, false, false, 2);
+        processesPtr = &localProcesses;
+    }
+    
+    const auto& processes = *processesPtr;
 
     for (auto& kv : state->instances) {
         auto& inst = kv.second;
