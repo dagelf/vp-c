@@ -65,6 +65,7 @@ struct Template {
     std::vector<std::string> resources;      // Resource types this needs
     std::map<std::string, std::string> vars; // Default variables
     std::string action;                      // Action to execute (URL or command)
+    std::map<std::string, std::string> launchers; // Launchers to execute
 };
 
 // JSON serialization for Template
@@ -79,6 +80,9 @@ inline void to_json(json& j, const Template& t) {
     if (!t.action.empty()) {
         j["action"] = t.action;
     }
+    if (!t.launchers.empty()) {
+        j["launchers"] = t.launchers;
+    }
 }
 
 inline void from_json(const json& j, Template& t) {
@@ -89,6 +93,9 @@ inline void from_json(const json& j, Template& t) {
     j.at("vars").get_to(t.vars);
     if (j.contains("action")) {
         j.at("action").get_to(t.action);
+    }
+    if (j.contains("launchers")) {
+        j.at("launchers").get_to(t.launchers);
     }
 }
 
@@ -106,6 +113,7 @@ struct Instance {
     double cpu_time;                         // CPU time in seconds
     std::string error;                       // Error message if status=error
     std::string action;                      // Action to execute (URL or command)
+    std::map<std::string, std::string> launchers; // Launchers to execute
 };
 
 // JSON serialization for Instance
@@ -124,6 +132,7 @@ inline void to_json(json& j, const Instance& i) {
     if (i.cpu_time > 0) j["cputime"] = i.cpu_time;
     if (!i.error.empty()) j["error"] = i.error;
     if (!i.action.empty()) j["action"] = i.action;
+    if (!i.launchers.empty()) j["launchers"] = i.launchers;
 }
 
 inline void from_json(const json& j, Instance& i) {
@@ -140,6 +149,7 @@ inline void from_json(const json& j, Instance& i) {
     if (j.contains("cputime")) j.at("cputime").get_to(i.cpu_time);
     if (j.contains("error")) j.at("error").get_to(i.error);
     if (j.contains("action")) j.at("action").get_to(i.action);
+    if (j.contains("launchers")) j.at("launchers").get_to(i.launchers);
 }
 
 // ProcessInfo contains detailed information about a discovered process

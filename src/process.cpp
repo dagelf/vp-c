@@ -111,6 +111,32 @@ std::shared_ptr<Instance> startProcess(
         inst->action = action;
     }
 
+    // Interpolate launchers if present
+    if (!tmpl.launchers.empty()) {
+        for (const auto& launcher : tmpl.launchers) {
+            std::string cmd = launcher.second;
+            // Replace vars
+            for (const auto& kv : finalVars) {
+                std::string placeholder = "${" + kv.first + "}";
+                size_t pos = 0;
+                while ((pos = cmd.find(placeholder, pos)) != std::string::npos) {
+                    cmd.replace(pos, placeholder.length(), kv.second);
+                    pos += kv.second.length();
+                }
+            }
+            // Replace resources
+            for (const auto& kv : inst->resources) {
+                std::string placeholder = "${" + kv.first + "}";
+                size_t pos = 0;
+                while ((pos = cmd.find(placeholder, pos)) != std::string::npos) {
+                    cmd.replace(pos, placeholder.length(), kv.second);
+                    pos += kv.second.length();
+                }
+            }
+            inst->launchers[launcher.first] = cmd;
+        }
+    }
+
     // Phase 3: Start process
     pid_t pid = fork();
 

@@ -273,7 +273,13 @@ std::string handleRequest(const std::string& method, const std::string& path, co
             }
 
             auto inst = g_state->instances[instanceName];
-            if (inst->action.empty()) {
+            std::string actionToExecute = req.value("action", "");
+            
+            if (actionToExecute.empty()) {
+                actionToExecute = inst->action;
+            }
+
+            if (actionToExecute.empty()) {
                 std::string error_body = R"({"error": "No action defined"})";
                 response << "HTTP/1.1 400 Bad Request\r\n";
                 response << "Content-Type: application/json\r\n";
@@ -283,7 +289,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
                 return response.str();
             }
 
-            bool success = executeAction(inst->action);
+            bool success = executeAction(actionToExecute);
             json result = {{"success", success}};
             std::string body_str = result.dump(2);
             response << "HTTP/1.1 200 OK\r\n";
