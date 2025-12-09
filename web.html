@@ -387,8 +387,11 @@
             color: var(--card-fg);
             padding: 1.5rem;
             border-radius: var(--radius);
-            max-width: 500px;
-            width: 100%;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
@@ -400,6 +403,8 @@
 
         .modal-body {
             margin-bottom: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
         }
 
         .modal-footer {
@@ -665,7 +670,8 @@
             config.apiKey = document.getElementById('setting-key').value.trim();
             saveConfig();
             closeModal();
-            // Reload current tab to test new settings
+            // Clear auth waiting flag and reload current tab to test new settings
+            state.waitingForAuth = false;
             rerenderCurrentTab();
         }
 
@@ -677,11 +683,15 @@
             }).then(res => {
                 if (res.status === 401) {
                     // Need API key
-                    showSettings();
+                    if (!state.waitingForAuth) {
+                        state.waitingForAuth = true;
+                        showSettings();
+                    }
                 }
             }).catch(err => {
                 // Connection error - might need to configure host
-                if (!config.apiKey) {
+                if (!config.apiKey && !state.waitingForAuth) {
+                    state.waitingForAuth = true;
                     showSettings();
                 }
             });
@@ -781,7 +791,8 @@
             discovery: [],
             lastUpdate: { instances: 0, discover: 0 },
             activeTab: 'instances',
-            filter: ''
+            filter: '',
+            waitingForAuth: false  // Track if we're waiting for user to enter credentials
         };
 
         // --- Controller / Logic ---
@@ -884,8 +895,11 @@
                 if (body) opts.body = JSON.stringify(body);
                 const res = await fetch(url, opts);
                 if (res.status === 401) {
-                    // Unauthorized - prompt for API key
-                    showSettings();
+                    // Unauthorized - prompt for API key (only once)
+                    if (!state.waitingForAuth) {
+                        state.waitingForAuth = true;
+                        showSettings();
+                    }
                     throw new Error('Unauthorized - API key required');
                 }
                 if (!res.ok) throw new Error(await res.text());
@@ -1116,22 +1130,211 @@
 
         async function startTemplate(id) {
             const t = state.templates[id];
-            const name = prompt('Name:');
-            if (!name) return;
+            showLaunchDialog(t);
+        }
 
-            const vars = {};
-            const needed = new Set(Object.keys(t.vars || {}));
-            (t.command.match(/\${([^}]+)}/g) || []).forEach(m => needed.add(m.slice(2, -1)));
+        // Helper function to calculate next available resource value
+        function getNextAvailableResource(resType) {
+            const typeInfo = state.types[resType];
+            if (!typeInfo) return null;
 
-            for (const k of needed) {
-                const v = prompt(`${k}:`, t.vars?.[k] || '');
-                if (v === null) return;
-                vars[k] = v;
+            // For counter-based resources (like tcpport, vncport)
+            if (typeInfo.counter) {
+                const start = typeInfo.start || 0;
+                const end = typeInfo.end || 65535;
+
+                // Get all currently allocated resources of this type
+                const allocated = new Set();
+                for (const key in state.resources) {
+                    const res = state.resources[key];
+                    if (res.type === resType) {
+                        const val = parseInt(res.value);
+                        if (!isNaN(val)) {
+                            allocated.add(val);
+                        }
+                    }
+                }
+
+                // Find the first free value in the range
+                for (let i = start; i <= end; i++) {
+                    if (!allocated.has(i)) {
+                        return i.toString();
+                    }
+                }
             }
 
-            await fetchAPI('/api/instances', 'POST', { action: 'start', template: id, name, vars });
+            // For non-counter resources, return null (will auto-allocate)
+            return null;
+        }
+
+        async function showLaunchDialog(template) {
+            // Ensure we have resource types and current allocations loaded
+            if (Object.keys(state.types).length === 0) {
+                await loadResourceTypes();
+            }
+            if (Object.keys(state.resources).length === 0) {
+                await loadResources();
+            }
+
+            // Extract all variables from command and template
+            const allVars = new Set(Object.keys(template.vars || {}));
+            const commandVars = (template.command.match(/\${([^}]+)}/g) || []).map(m => m.slice(2, -1));
+            commandVars.forEach(v => allVars.add(v));
+
+            // Build the dialog HTML
+            let html = '<div class="flex flex-col gap-4" style="max-height: 60vh; overflow-y: auto;">';
+
+            // Instance Name
+            html += `
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Instance Name</label>
+                    <input type="text" id="launch-name" class="input w-full" placeholder="Enter instance name" value="${template.id}-instance">
+                </div>
+            `;
+
+            // Variables Section
+            if (allVars.size > 0) {
+                html += '<div><div class="text-xs font-bold text-muted uppercase mb-2">Variables</div>';
+                allVars.forEach(varName => {
+                    const defaultValue = template.vars?.[varName] || '';
+                    html += `
+                        <div class="mb-3">
+                            <label class="block text-xs text-muted mb-1">${varName}</label>
+                            <input type="text" id="var-${varName}" class="input w-full" value="${escapeHtml(defaultValue)}" placeholder="Enter ${varName}" oninput="updateCommandPreview('${template.id}')">
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Resources Section
+            if (template.resources && template.resources.length > 0) {
+                html += '<div><div class="text-xs font-bold text-muted uppercase mb-2">Required Resources</div>';
+                template.resources.forEach(res => {
+                    // Calculate next available value for this resource type
+                    const nextValue = getNextAvailableResource(res);
+                    const placeholder = nextValue ? `Next available: ${nextValue}` : 'Auto-allocate';
+                    const value = nextValue || '';
+
+                    html += `
+                        <div class="mb-3">
+                            <label class="block text-xs text-muted mb-1">${res}</label>
+                            <input type="text" id="res-${res}" class="input w-full" placeholder="${placeholder}" value="${value}">
+                            <p class="text-xs text-muted mt-1">Editable - will auto-allocate if empty</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Command Preview Section
+            html += `
+                <div>
+                    <div class="text-xs font-bold text-muted uppercase mb-2 flex justify-between items-center">
+                        <span>Command Preview</span>
+                        <button onclick="updateCommandPreview('${template.id}')" class="btn btn-outline btn-sm" style="height: 1.5rem; font-size: 0.65rem; padding: 0 0.5rem;">Update</button>
+                    </div>
+                    <textarea id="launch-command" class="input w-full font-mono text-xs" rows="4" style="resize: vertical; padding: 0.5rem;">${escapeHtml(template.command)}</textarea>
+                    <p class="text-xs text-muted mt-1">Edit the final command before launch</p>
+                </div>
+            `;
+
+            html += '</div>';
+
+            // Store template data for the dialog
+            window._currentLaunchTemplate = template;
+
+            showModal(`Launch: ${template.label || template.id}`, html, [
+                { text: 'Cancel', class: 'btn-outline', onclick: 'closeModal()' },
+                { text: 'Launch', class: 'btn-primary', onclick: 'executeLaunch()' }
+            ]);
+
+            // Initial command update
+            setTimeout(() => updateCommandPreview(template.id), 100);
+        }
+
+        function updateCommandPreview(templateId) {
+            const template = window._currentLaunchTemplate;
+            if (!template) return;
+
+            let cmd = template.command;
+
+            // Replace all variables
+            const allVars = new Set(Object.keys(template.vars || {}));
+            const commandVars = (template.command.match(/\${([^}]+)}/g) || []).map(m => m.slice(2, -1));
+            commandVars.forEach(v => allVars.add(v));
+
+            allVars.forEach(varName => {
+                const input = document.getElementById(`var-${varName}`);
+                if (input) {
+                    const value = input.value;
+                    cmd = cmd.replace(new RegExp('\\$\\{' + varName + '\\}', 'g'), value);
+                }
+            });
+
+            // Update the command textarea
+            const commandField = document.getElementById('launch-command');
+            if (commandField) {
+                commandField.value = cmd;
+            }
+        }
+
+        async function executeLaunch() {
+            const template = window._currentLaunchTemplate;
+            if (!template) return;
+
+            const name = document.getElementById('launch-name').value.trim();
+            if (!name) {
+                alert('Please enter an instance name');
+                return;
+            }
+
+            // Collect variables
+            const vars = {};
+            const allVars = new Set(Object.keys(template.vars || {}));
+            const commandVars = (template.command.match(/\${([^}]+)}/g) || []).map(m => m.slice(2, -1));
+            commandVars.forEach(v => allVars.add(v));
+
+            allVars.forEach(varName => {
+                const input = document.getElementById(`var-${varName}`);
+                if (input) {
+                    vars[varName] = input.value;
+                }
+            });
+
+            // Collect resource overrides (only if specified)
+            if (template.resources) {
+                template.resources.forEach(res => {
+                    const input = document.getElementById(`res-${res}`);
+                    if (input && input.value.trim()) {
+                        vars[res] = input.value.trim();
+                    }
+                });
+            }
+
+            // Get the final edited command
+            const finalCommand = document.getElementById('launch-command').value;
+
+            // If command was edited, we need to handle it differently
+            // For now, we'll use the vars approach and let the backend interpolate
+            // In the future, we could add an API endpoint that accepts a raw command
+
+            await fetchAPI('/api/instances', 'POST', {
+                action: 'start',
+                template: template.id,
+                name,
+                vars
+            });
+
+            closeModal();
             await loadInstances();
             setTab('instances');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function addAsTemplate(name) {
@@ -1339,6 +1542,10 @@
         }
         function closeModal() {
             document.getElementById('modal-overlay').style.display = 'none';
+            // If user cancels auth prompt, allow showing it again on next API call
+            if (state.waitingForAuth) {
+                state.waitingForAuth = false;
+            }
         }
 
         // Utils

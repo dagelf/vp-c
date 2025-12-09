@@ -64,21 +64,8 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         return response.str();
     }
 
-    // Basic auth: require key for ALL paths (including root) if configured
-    if (!g_state->apiKey.empty()) {
-        std::string key = getHeaderValue(headers, "X-VP-Key");
-        if (key != g_state->apiKey) {
-            response << "HTTP/1.1 401 Unauthorized\r\n";
-            response << "Content-Type: text/plain\r\n";
-            response << "Access-Control-Allow-Origin: *\r\n";
-            response << "Content-Length: 12\r\n";
-            response << "\r\n";
-            response << "Unauthorized";
-            return response.str();
-        }
-    }
-
-    // Serve web.html (embedded or from file for development)
+    // Serve web.html (embedded or from file for development) - NO AUTH REQUIRED
+    // The web UI will handle authentication via the API
     if (path == "/" && method == "GET") {
         std::string html;
 
@@ -96,6 +83,21 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         response << "\r\n";
         response << html;
         return response.str();
+    }
+
+    // Auth check for ALL API endpoints
+    bool isApiPath = path.rfind("/api", 0) == 0;
+    if (isApiPath && !g_state->apiKey.empty()) {
+        std::string key = getHeaderValue(headers, "X-VP-Key");
+        if (key != g_state->apiKey) {
+            response << "HTTP/1.1 401 Unauthorized\r\n";
+            response << "Content-Type: text/plain\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
+            response << "Content-Length: 12\r\n";
+            response << "\r\n";
+            response << "Unauthorized";
+            return response.str();
+        }
     }
 
     if (path == "/api/instances" && method == "GET") {
