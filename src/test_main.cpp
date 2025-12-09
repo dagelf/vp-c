@@ -148,7 +148,12 @@ TEST(StartAndStopProcess) {
     try {
         // Start a process
         std::map<std::string, std::string> vars;
-        auto inst = startProcess(state, *it->second, "test-instance", vars);
+        std::string instName = std::string("test-instance-") + std::to_string(getpid());
+        state->releaseResources(instName);
+        state->instances.erase(instName);
+        state->save();
+
+        auto inst = startProcess(state, *it->second, instName, vars);
 
         assertTrue(inst != nullptr, "Should create instance");
         assertTrue(inst->pid > 0, "Instance should have PID");
@@ -160,9 +165,60 @@ TEST(StartAndStopProcess) {
         assertEqual("stopped", inst->status, "Instance should be stopped");
         assertEqual(0, inst->pid, "Instance PID should be 0");
 
+        state->instances.erase(instName);
+        state->releaseResources(instName);
+        state->save();
+
     } catch (const std::exception& e) {
         assertTrue(false, std::string("Process lifecycle test failed: ") + e.what());
     }
+}
+
+TEST(AddTemplateFromStdinString) {
+    auto state = State::load();
+
+    std::string jsonStr = R"({
+        "id": "stdin-template",
+        "label": "From Stdin",
+        "command": "echo hi",
+        "resources": [],
+        "vars": {}
+    })";
+
+    std::string err;
+    bool ok = state->addTemplateFromJsonString(jsonStr, err);
+    assertTrue(ok, std::string("Failed to add template from string: ") + err);
+    assertTrue(state->templates.find("stdin-template") != state->templates.end(),
+               "Template should be added");
+
+    // Cleanup
+    state->deleteTemplate("stdin-template");
+    state->save();
+}
+
+TEST(DeleteTemplate) {
+    auto state = State::load();
+
+    std::string jsonStr = R"({
+        "id": "temp-to-delete",
+        "label": "Delete Me",
+        "command": "echo bye",
+        "resources": [],
+        "vars": {}
+    })";
+
+    std::string err;
+    bool ok = state->addTemplateFromJsonString(jsonStr, err);
+    assertTrue(ok, std::string("Failed to add template for delete test: ") + err);
+    assertTrue(state->templates.find("temp-to-delete") != state->templates.end(),
+               "Template should exist before delete");
+
+    bool deleted = state->deleteTemplate("temp-to-delete");
+    assertTrue(deleted, "deleteTemplate should return true when deleted");
+    assertTrue(state->templates.find("temp-to-delete") == state->templates.end(),
+               "Template should be removed");
+
+    state->save();
 }
 
 TEST(ExtractProcessName) {

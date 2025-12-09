@@ -101,7 +101,8 @@ inline void from_json(const json& j, Template& t) {
 
 // Instance represents a running or stopped process instance
 struct Instance {
-    std::string name;                        // User-provided name
+    std::string id;                          // Unique instance ID (auto-generated)
+    std::string name;                        // User-provided name (can be duplicate)
     std::string template_name;               // Template ID
     std::string command;                     // Final interpolated command
     int pid;                                 // Process ID
@@ -119,6 +120,7 @@ struct Instance {
 // JSON serialization for Instance
 inline void to_json(json& j, const Instance& i) {
     j = json{
+        {"id", i.id},
         {"name", i.name},
         {"template", i.template_name},
         {"command", i.command},
@@ -136,6 +138,13 @@ inline void to_json(json& j, const Instance& i) {
 }
 
 inline void from_json(const json& j, Instance& i) {
+    // Support old format without ID for backwards compatibility
+    if (j.contains("id")) {
+        j.at("id").get_to(i.id);
+    } else {
+        // Generate ID from name for old instances
+        i.id = j.at("name").get<std::string>();
+    }
     j.at("name").get_to(i.name);
     j.at("template").get_to(i.template_name);
     j.at("command").get_to(i.command);

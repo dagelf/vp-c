@@ -4,7 +4,7 @@
 
 Zero-assumption process manager. Pure primitives for resource allocation + process control.
 
-**Philosophy:** Firmware-style design. No hardcoded resource types. Everything validated via shell commands. Designed for Mars
+**Philosophy:** Firmware-style design. No hardcoded resource types. Everything validated via shell commands. Designed for Mars.
 
 **Assume nothing, enable everything.**
 
@@ -18,10 +18,11 @@ Interact with anything? Just add an action.
 1. **Zero Hardcoded Assumptions** - Resources aren't hardcoded
 2. **Maximum Flexibility** - Add ANY resource type at runtime
 3. **Validation via Shell** - Use any installed tool
-5. **Brutally Simple** - 6 files, ~500 lines
-6. **Firmware-Style** - Pure primitives, users configure behavior
-7. **Debuggable** - Human-readable JSON state
-8. **Extensible Without Code Changes** - Add types via CLI
+4. **Brutally Simple** - 6 files, ~500 lines
+5. **Firmware-Style** - Pure primitives, users configure behavior
+6. **Debuggable** - Human-readable JSON state
+7. **Extensible Without Code Changes** - Add types via CLI
+8. **Security Is Up To You (Today)** - Shells and HTTP are wide open unless you add controls
 
 ## Design Constraints
 
@@ -86,7 +87,7 @@ Monitor mode: Import existing process as read-only instance (managed=false).
 
 ## State File
 
-`~/.vibeprocess/state.json` contains everything:
+`~/.vibeprocess/state.json` contains everything (README previously referenced `~/.config/vp/state.json`; path should be unified):
 - instances: name -> Instance
 - templates: id -> Template
 - resources: type:value -> Resource
@@ -132,8 +133,14 @@ Hot-reload via inotify when file changes externally.
 - Web UI: Serves from web.html file (not embedded) for easier development
 
 **Known Issues:**
+- HTTP server is unauthenticated, CORS is `*`, manual parser has no request/size limits
+- Shell execution everywhere (`/bin/sh -c`, `system`) for commands, actions, and resource checks; no sandboxing
+- State path mismatch between code (`~/.vibeprocess`) and earlier docs (`~/.config/vp`)
 - Config hot-reload (inotify) - setup exists but watcher thread not implemented
-- Minor: Race conditions in reaper threads (need mutex protection)
+- Race conditions: state maps/counters mutated across threads without consistent locking
+- Process group kill assumes pgid==pid and can overreach if PIDs are reused
+- Discovery/matching is heuristic (basename + optional ports/CWD) and can mis-associate processes
+- Tests touch real state dir and rely on host /proc; no HTTP/web integration tests yet
 - Minor: Parent chain basename extraction edge case
 
 **Benefits vs Go Version:**
@@ -143,30 +150,49 @@ Hot-reload via inotify when file changes externally.
 - Slightly faster startup
 
 **Testing:**
-- 15/15 core tests passing
+- 17/17 unit-style tests passing (CLI/process/resource/state/template add/delete; no API/web coverage)
 - Manual testing: template/resource-type management works
 - State persistence verified working
 - Process lifecycle verified working
 
+**Recent changes:**
+- `vp template add -` accepts JSON from stdin; templates can be deleted via API/state helper
+- `vp key` prints or sets API key (reads stdin if piped; otherwise generates)
+- CMake now builds `vp_test`; `make test` runs the suite; `build.sh` runs tests automatically
+- API requests now require `X-VP-Key` when `api_key` is set (enforced server-side)
+
+## Security Considerations (current posture)
+- No authZ/authN; any local client can start/stop processes or run actions
+- HTTP server has open CORS and no request limits; DoS is trivial
+- Commands/actions/resource-checks are executed via shell with full user privileges
+- No isolation: processes inherit environment/stdio; no seccomp/cgroups/uid drop
+- Mitigation today: run behind a trusted reverse proxy, restrict bind address, or sandbox the binary
+
 ## Roadmap
 
 ### Immediate (To complete C++ conversion)
-- [ ] Complete HTTP API response serialization
-- [ ] Port full process discovery logic
-- [ ] Implement file watching thread
-- [ ] Add mutex protection for shared state
+- [ ] Add mutex protection for shared state (instances/types/resources/counters)
+- [ ] Optional auth (token/header) and bind-address restriction
+- [ ] add make option to build statically
 
 ### Short-term
+- [ ] add make option to build in a specified container with musl / older libc (debian 9/10) 
+- [ ] Implement file watching thread
 - [ ] Better error messages (resource conflicts, validation failures)
-- [ ] Comprehensive integration tests
+- [ ] Comprehensive integration tests (CLI + HTTP + web)
+- [ ] Split state persistence/locking for concurrent API calls
+- [ ] Harden process matching (exe inode, UID, ports) to avoid false matches
+- [ ] Add request size/time limits and minimal HTTP parser guards
+- [ ] Align state file path/docs and add migration helper
 
 ### Medium-term
+- [ ] Remove `system`/`sh -c` in favor of execve with argv and constrained env
 - [ ] Resource tags/grouping (dev/prod/test)
 - [ ] Bulk operations (stop-all, restart-all by tag)
 - [ ] Health checks (periodic validation + auto-restart)
+- [ ] Log capture (stdout/stderr to files with size limits)
 
 ### Long-term (Maybe - would increase complexity)
-- [ ] Log capture (stdout/stderr to files)
 - [ ] Resource limits (CPU/mem via cgroups)
 - [ ] Dependency chains (start B after A running)
 - [ ] Multi-host coordination (cluster mode)

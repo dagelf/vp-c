@@ -54,6 +54,9 @@ std::string extractProcessName(const std::string& command);
 // Check if we can manage a process
 bool canManageProcess(int pid);
 
+// Generate a unique instance ID (name-timestamp or name-timestamp-N if collision)
+std::string generateInstanceId(std::shared_ptr<State> state, const std::string& name);
+
 } // namespace vp
 
 #endif // VP_PROCESS_HPP

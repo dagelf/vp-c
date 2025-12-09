@@ -81,7 +81,8 @@ bool checkResource(const ResourceType& rt, const std::string& value) {
     }
 
     // Execute check
-    int result = system(check.c_str());
+    std::string silentCheck = check + " > /dev/null 2>&1";
+    int result = system(silentCheck.c_str());
 
     // Natural command behavior: exit 0 = exists/in-use (not available)
     // exit 1 = free/doesn't exist (available)

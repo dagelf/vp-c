@@ -101,6 +101,11 @@ std::shared_ptr<State> State::load() {
             state->remotesAllowed = j["remotes_allowed"].get<std::map<std::string, bool>>();
         }
 
+        // Load api_key
+        if (j.contains("api_key") && j["api_key"].is_string()) {
+            state->apiKey = j["api_key"].get<std::string>();
+        }
+
     } catch (const std::exception& e) {
         std::cerr << "Error parsing state file: " << e.what() << std::endl;
         // Return default state on parse error
@@ -155,6 +160,11 @@ bool State::save() {
 
         // Serialize remotes_allowed
         j["remotes_allowed"] = remotesAllowed;
+
+    // Serialize api_key
+    if (!apiKey.empty()) {
+        j["api_key"] = apiKey;
+    }
 
         // Write to file
         std::ofstream file(stateFile);
@@ -211,6 +221,11 @@ std::string State::toJson() const {
 
     // Serialize remotes_allowed
     j["remotes_allowed"] = remotesAllowed;
+
+    // Serialize api_key
+    if (!apiKey.empty()) {
+        j["api_key"] = apiKey;
+    }
 
     return j.dump(2);
 }
@@ -271,11 +286,40 @@ bool State::fromJson(const std::string& json_str) {
             remotesAllowed = j["remotes_allowed"].get<std::map<std::string, bool>>();
         }
 
+        // Load api_key
+        if (j.contains("api_key") && j["api_key"].is_string()) {
+            apiKey = j["api_key"].get<std::string>();
+        } else {
+            apiKey.clear();
+        }
+
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
         return false;
     }
+}
+
+bool State::addTemplateFromJsonString(const std::string& contents, std::string& error) {
+    try {
+        json j = json::parse(contents);
+        auto tmpl = std::make_shared<Template>();
+        *tmpl = j.get<Template>();
+        templates[tmpl->id] = tmpl;
+        return true;
+    } catch (const std::exception& e) {
+        error = e.what();
+        return false;
+    }
+}
+
+bool State::deleteTemplate(const std::string& id) {
+    auto it = templates.find(id);
+    if (it == templates.end()) {
+        return false;
+    }
+    templates.erase(it);
+    return true;
 }
 
 void State::claimResource(const std::string& rtype, const std::string& value, const std::string& owner) {

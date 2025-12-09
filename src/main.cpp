@@ -1,14 +1,16 @@
 #include "state.hpp"
 #include "process.hpp"
-#include "resource.hpp"
 #include "api.hpp"
-#include "types.hpp"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <vector>
 #include <string>
-#include <cstring>
+#include <random>
+#include <algorithm>
+#include <cctype>
+#include <unistd.h>
+#include <sstream>
 
 using namespace vp;
 
@@ -91,9 +93,9 @@ std::map<std::string, std::string> parseVars(const std::vector<std::string>& arg
     return vars;
 }
 
-void handleStart(const std::vector<std::string>& args) {
+void handleNew(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        std::cerr << "Usage: vp start <template> <name> [--key=value...]\n";
+        std::cerr << "Usage: vp new <template> <name> [--key=value...]\n";
         exit(1);
     }
 
@@ -127,6 +129,35 @@ void handleStart(const std::vector<std::string>& args) {
         std::cerr << "Error: " << e.what() << "\n";
         exit(1);
     }
+}
+
+void handleStart(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "Usage: vp start <name>\n";
+        exit(1);
+    }
+
+    matchAndUpdateInstances(state);
+
+    std::string name = args[0];
+    auto it = state->instances.find(name);
+
+    if (it == state->instances.end()) {
+        std::cerr << "Instance not found: " << name << "\n";
+        exit(1);
+    }
+
+    if (it->second->status == "running") {
+        std::cerr << "Instance " << name << " is already running\n";
+        exit(1);
+    }
+
+    if (!restartProcess(state, it->second)) {
+        std::cerr << "Error starting process\n";
+        exit(1);
+    }
+
+    std::cout << "Started " << it->second->name << " (PID " << it->second->pid << ")\n";
 }
 
 void handleStop(const std::vector<std::string>& args) {
@@ -172,6 +203,17 @@ void handleRestart(const std::vector<std::string>& args) {
         exit(1);
     }
 
+    if (it->second->status == "running") {
+        std::cout << "Stopping " << name << "...\n";
+        if (!stopProcess(state, it->second)) {
+            std::cerr << "Error stopping process\n";
+            exit(1);
+        }
+        state->releaseResources(name);
+        state->save();
+    }
+
+    std::cout << "Starting " << name << "...\n";
     if (!restartProcess(state, it->second)) {
         std::cerr << "Error restarting process\n";
         exit(1);
@@ -244,27 +286,31 @@ void handleTemplate(const std::vector<std::string>& args) {
         }
 
         std::string filename = args[1];
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            std::cerr << "Error: Cannot open file: " << filename << "\n";
+        std::string contents;
+        if (filename == "-") {
+            std::ostringstream ss;
+            ss << std::cin.rdbuf();
+            contents = ss.str();
+        } else {
+            std::ifstream file(filename);
+            if (!file.is_open()) {
+                std::cerr << "Error: Cannot open file: " << filename << "\n";
+                exit(1);
+            }
+            std::ostringstream ss;
+            ss << file.rdbuf();
+            contents = ss.str();
+        }
+
+        std::string err;
+        if (!state->addTemplateFromJsonString(contents, err)) {
+            std::cerr << "Error parsing template: " << err << "\n";
             exit(1);
         }
 
-        try {
-            json j;
-            file >> j;
-
-            auto tmpl = std::make_shared<Template>();
-            *tmpl = j.get<Template>();
-
-            state->templates[tmpl->id] = tmpl;
-            state->save();
-
-            std::cout << "Added template: " << tmpl->id << "\n";
-        } catch (const std::exception& e) {
-            std::cerr << "Error parsing template: " << e.what() << "\n";
-            exit(1);
-        }
+        state->save();
+        auto tmpl = json::parse(contents).get<Template>(); // safe due to above parse success
+        std::cout << "Added template: " << tmpl.id << "\n";
     } else if (subcmd == "show") {
         if (args.size() < 2) {
             std::cerr << "Usage: vp template show <id>\n";
@@ -341,14 +387,60 @@ void handleResourceType(const std::vector<std::string>& args) {
 void printUsage() {
     std::cerr << "Usage: vp <command> [args...]\n";
     std::cerr << "Commands:\n";
-    std::cerr << "  start <template> <name> [--key=value...]  - Start a new process\n";
+    std::cerr << "  new <template> <name> [--key=value...]     - Create and start a new process\n";
+    std::cerr << "  start <name>                               - Start a stopped process\n";
     std::cerr << "  stop <name>                                - Stop a running process\n";
-    std::cerr << "  restart <name>                             - Restart a stopped process\n";
+    std::cerr << "  restart <name>                             - Restart a process (stop if running, then start)\n";
     std::cerr << "  delete <name>                              - Delete a process instance\n";
     std::cerr << "  ps                                         - List all instances\n";
     std::cerr << "  serve [port]                               - Start web UI (default: 8080)\n";
     std::cerr << "  template <list|add|show>                   - Manage templates\n";
     std::cerr << "  resource-type <list|add>                   - Manage resource types\n";
+    std::cerr << "  key                                        - Show or set API key (reads stdin if piped)\n";
+}
+
+std::string trim(const std::string& s) {
+    auto start = std::find_if_not(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); });
+    auto end = std::find_if_not(s.rbegin(), s.rend(), [](unsigned char c) { return std::isspace(c); }).base();
+    if (start >= end) return "";
+    return std::string(start, end);
+}
+
+std::string generateRandomKey(size_t bytes = 32) {
+    std::random_device rd;
+    std::uniform_int_distribution<int> dist(0, 255);
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (size_t i = 0; i < bytes; ++i) {
+        int v = dist(rd);
+        oss << std::setw(2) << v;
+    }
+    return oss.str();
+}
+
+void handleKey() {
+    // If stdin is not a TTY, attempt to read key from stdin
+    std::string input;
+    if (!isatty(STDIN_FILENO)) {
+        std::ostringstream ss;
+        ss << std::cin.rdbuf();
+        input = trim(ss.str());
+    }
+
+    if (!input.empty()) {
+        state->apiKey = input;
+        state->save();
+        std::cout << state->apiKey << "\n";
+        return;
+    }
+
+    // No stdin key provided; show existing or create new
+    if (state->apiKey.empty()) {
+        state->apiKey = generateRandomKey();
+        state->save();
+    }
+
+    std::cout << state->apiKey << "\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -366,7 +458,9 @@ int main(int argc, char* argv[]) {
         args.push_back(argv[i]);
     }
 
-    if (cmd == "start") {
+    if (cmd == "new") {
+        handleNew(args);
+    } else if (cmd == "start") {
         handleStart(args);
     } else if (cmd == "stop") {
         handleStop(args);
@@ -382,6 +476,8 @@ int main(int argc, char* argv[]) {
         handleTemplate(args);
     } else if (cmd == "resource-type") {
         handleResourceType(args);
+    } else if (cmd == "key") {
+        handleKey();
     } else {
         std::cerr << "Unknown command: " << cmd << "\n";
         printUsage();

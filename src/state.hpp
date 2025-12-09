@@ -33,6 +33,7 @@ public:
     std::map<std::string, int> counters;                            // counter_name -> current
     std::map<std::string, std::shared_ptr<ResourceType>> types;    // Resource type definitions
     std::map<std::string, bool> remotesAllowed;                    // origin -> allowed
+    std::string apiKey;                                            // API key for HTTP auth
 
     // Discovery cache
     std::vector<std::map<std::string, std::string>> lastDiscovery;
@@ -45,6 +46,12 @@ public:
 
     // Deserialize from JSON
     bool fromJson(const std::string& json);
+
+    // Add template from JSON string
+    bool addTemplateFromJsonString(const std::string& contents, std::string& error);
+
+    // Delete template by id, returns true if erased
+    bool deleteTemplate(const std::string& id);
 
 private:
     std::mutex mutex_;

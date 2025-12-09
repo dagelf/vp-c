@@ -408,13 +408,49 @@
             gap: 0.5rem;
         }
 
+        /* Config Editor specific */
+        .editor-wrapper {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .line-numbers {
+            width: 3rem;
+            padding: 1rem 0.5rem;
+            text-align: right;
+            background: var(--muted);
+            color: var(--muted-fg);
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            overflow: hidden;
+            user-select: none;
+            border-right: 1px solid var(--border);
+        }
+
         #config-editor {
+            flex: 1;
+            padding: 1rem;
             background-color: var(--editor-bg);
             color: var(--fg);
             font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.875rem;
             line-height: 1.5;
+            border: none;
+            resize: none;
+            white-space: pre;
+            overflow: auto;
         }
 
+        #config-editor:focus {
+            outline: none;
+        }
+
+        g
+
+        /* Scrollbar */
         #filter-badge {
             position: fixed;
             bottom: 1rem;
@@ -460,18 +496,17 @@
         </div>
 
         <div class="flex items-center gap-2">
+            <button onclick="showSettings()" class="btn btn-outline btn-icon" title="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
             <button onclick="toggleTheme()" class="btn btn-outline btn-icon" title="Toggle Theme">
                 <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round"></svg>
-            </button>
-            <button onclick="showStartForm()" class="btn btn-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5v14"></path>
-                </svg>
-                New Instance
             </button>
         </div>
     </header>
@@ -569,9 +604,12 @@
                     <button onclick="saveConfig()" class="btn btn-primary btn-sm">Save</button>
                 </div>
             </div>
-            <div class="card flex-1 flex flex-col">
-                <textarea id="config-editor"
-                    class="flex-1 w-full p-4 font-mono text-sm resize-none border-0 focus:outline-none"></textarea>
+            <div class="card flex-1 flex flex-col overflow-hidden">
+                <div class="editor-wrapper">
+                    <div id="line-numbers" class="line-numbers">1</div>
+                    <textarea id="config-editor" class="w-full" spellcheck="false" oninput="updateLineNumbers()"
+                        onscroll="syncScroll()" onkeydown="handleTab(event)"></textarea>
+                </div>
             </div>
             <div id="config-msg" class="mt-2 text-sm hidden"></div>
         </div>
@@ -589,6 +627,66 @@
     </div>
 
     <script>
+        // --- Configuration ---
+        const config = {
+            targetHost: localStorage.getItem('vp-target-host') || 'http://127.0.0.1:8080',
+            apiKey: localStorage.getItem('vp-api-key') || ''
+        };
+
+        function saveConfig() {
+            localStorage.setItem('vp-target-host', config.targetHost);
+            localStorage.setItem('vp-api-key', config.apiKey);
+        }
+
+        function showSettings() {
+            const html = `
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">Target Host</label>
+                        <input type="text" id="setting-host" class="input w-full" value="${config.targetHost}" placeholder="http://127.0.0.1:8080">
+                        <p class="text-xs text-muted mt-1">The host where vp server is running</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">API Key</label>
+                        <input type="password" id="setting-key" class="input w-full" value="${config.apiKey}" placeholder="Enter API key">
+                        <p class="text-xs text-muted mt-1">Get key with: vp key</p>
+                    </div>
+                </div>
+            `;
+
+            showModal('Settings', html, [
+                { text: 'Cancel', class: 'btn-outline', onclick: 'closeModal()' },
+                { text: 'Save', class: 'btn-primary', onclick: 'saveSettings()' }
+            ]);
+        }
+
+        function saveSettings() {
+            config.targetHost = document.getElementById('setting-host').value.trim();
+            config.apiKey = document.getElementById('setting-key').value.trim();
+            saveConfig();
+            closeModal();
+            // Reload current tab to test new settings
+            rerenderCurrentTab();
+        }
+
+        // Check if we need to prompt for API key on first use
+        function checkInitialSetup() {
+            // Try a simple API call
+            fetch(config.targetHost + '/api/instances', {
+                headers: config.apiKey ? { 'X-VP-Key': config.apiKey } : {}
+            }).then(res => {
+                if (res.status === 401) {
+                    // Need API key
+                    showSettings();
+                }
+            }).catch(err => {
+                // Connection error - might need to configure host
+                if (!config.apiKey) {
+                    showSettings();
+                }
+            });
+        }
+
         // --- View (HTML Generation) ---
         const View = {
             instanceCard: (i, isStale) => {
@@ -601,7 +699,7 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="flex items-center gap-2">
-                            <button onclick="showLaunchers('${i.name}')" class="font-semibold btn btn-sm btn-outline border-0 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Launchers">${i.name}</button>
+                            <button onclick="showLaunchers('${i.name}', event)" class="font-semibold btn btn-sm btn-outline border-0 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Launchers">${i.name}</button>
                             <span class="badge ${badge}">${i.status}</span>
                         </div>
                         <div class="flex gap-1">
@@ -770,9 +868,26 @@
         // API
         async function fetchAPI(endpoint, method = 'GET', body = null) {
             try {
-                const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                const url = config.targetHost + endpoint;
+                const opts = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                // Add API key if configured
+                if (config.apiKey) {
+                    opts.headers['X-VP-Key'] = config.apiKey;
+                }
+
                 if (body) opts.body = JSON.stringify(body);
-                const res = await fetch(endpoint, opts);
+                const res = await fetch(url, opts);
+                if (res.status === 401) {
+                    // Unauthorized - prompt for API key
+                    showSettings();
+                    throw new Error('Unauthorized - API key required');
+                }
                 if (!res.ok) throw new Error(await res.text());
                 return await res.json();
             } catch (e) {
@@ -845,7 +960,9 @@
 
         async function loadConfig() {
             const cfg = await fetchAPI('/api/config');
-            document.getElementById('config-editor').value = JSON.stringify(cfg, null, 2);
+            const editor = document.getElementById('config-editor');
+            editor.value = JSON.stringify(cfg, null, 2);
+            updateLineNumbers();
         }
 
         async function saveConfig() {
@@ -856,6 +973,70 @@
                 showMsg('Saved!', 'success');
             } catch (e) {
                 showMsg(e.message, 'error');
+                highlightErrorLine(e.message);
+            }
+        }
+
+        function highlightErrorLine(msg) {
+            // Try to extract line number from error message
+            // V8 JSON.parse error format: "Unexpected token } in JSON at position 123"
+            // We need to convert position to line number
+
+            const match = msg.match(/at position (\d+)/);
+            if (match) {
+                const pos = parseInt(match[1]);
+                const text = document.getElementById('config-editor').value;
+                const line = text.substring(0, pos).split('\n').length;
+                scrollToLine(line);
+            } else {
+                // Fallback: check for "line X"
+                const lineMatch = msg.match(/line (\d+)/i);
+                if (lineMatch) {
+                    scrollToLine(parseInt(lineMatch[1]));
+                }
+            }
+        }
+
+        function scrollToLine(line) {
+            const editor = document.getElementById('config-editor');
+            const lineHeight = 21; // 1.5 * 14px (0.875rem) approx
+            // Better to calculate dynamically if possible, but fixed is okay for monospace
+
+            // Scroll to line
+            editor.scrollTop = (line - 1) * lineHeight - (editor.clientHeight / 2);
+
+            // Highlight (select) the line
+            const lines = editor.value.split('\n');
+            if (line > 0 && line <= lines.length) {
+                let start = 0;
+                for (let i = 0; i < line - 1; i++) {
+                    start += lines[i].length + 1; // +1 for newline
+                }
+                const end = start + lines[line - 1].length;
+                editor.focus();
+                editor.setSelectionRange(start, end);
+            }
+        }
+
+        function updateLineNumbers() {
+            const editor = document.getElementById('config-editor');
+            const lines = editor.value.split('\n').length;
+            document.getElementById('line-numbers').innerHTML = Array(lines).fill(0).map((_, i) => i + 1).join('<br>');
+        }
+
+        function syncScroll() {
+            const editor = document.getElementById('config-editor');
+            document.getElementById('line-numbers').scrollTop = editor.scrollTop;
+        }
+
+        function handleTab(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                e.target.value = e.target.value.substring(0, start) + '  ' + e.target.value.substring(end);
+                e.target.selectionStart = e.target.selectionEnd = start + 2;
+                updateLineNumbers(); // In case of line wrap change? No, but good practice
             }
         }
 
@@ -998,40 +1179,101 @@
         }
 
         // Launchers
-        function showLaunchers(name) {
+        function showLaunchers(name, event) {
             const i = state.instances[name];
             if (!i) return;
 
-            // If no launchers, maybe show info? Or just do nothing?
-            // User said "launch or pop up a launcher selector".
-            // If we have action, we can show that too.
-
             const launchers = i.launchers || {};
-            const hasLaunchers = Object.keys(launchers).length > 0;
+            const launcherKeys = Object.keys(launchers);
             const hasAction = !!i.action;
 
-            if (!hasLaunchers && !hasAction) {
-                // No launchers defined
-                // Maybe just show details?
+            // Check for template launchers
+            const tmpl = state.templates[i.template];
+            const tmplLaunchers = {};
+            if (tmpl && tmpl.launchers) {
+                Object.entries(tmpl.launchers).forEach(([key, cmd]) => {
+                    if (!launchers[key]) {
+                        // Interpolate
+                        let finalCmd = cmd;
+                        // Replace vars from template defaults
+                        if (tmpl.vars) {
+                            Object.entries(tmpl.vars).forEach(([k, v]) => {
+                                finalCmd = finalCmd.replace(new RegExp('\\${' + k + '}', 'g'), v);
+                            });
+                        }
+                        // Replace resources from instance
+                        if (i.resources) {
+                            Object.entries(i.resources).forEach(([k, v]) => {
+                                finalCmd = finalCmd.replace(new RegExp('\\${' + k + '}', 'g'), v);
+                            });
+                        }
+                        tmplLaunchers[key] = finalCmd;
+                    }
+                });
+            }
+
+            const tmplKeys = Object.keys(tmplLaunchers);
+            const totalOptions = launcherKeys.length + tmplKeys.length + (hasAction ? 1 : 0);
+
+            // Logic:
+            // If just click (no shift) AND exactly one option -> Launch it
+            // Else -> Show menu
+
+            if (!event.shiftKey && totalOptions === 1) {
+                if (hasAction) {
+                    executeAction(i.name, i.action);
+                } else if (launcherKeys.length > 0) {
+                    executeAction(i.name, launchers[launcherKeys[0]]);
+                } else if (tmplKeys.length > 0) {
+                    executeAction(i.name, tmplLaunchers[tmplKeys[0]]);
+                }
+                return;
+            }
+
+            if (totalOptions === 0) {
                 showModal(i.name, `<p class="text-muted">No launchers defined for this instance.</p>`);
                 return;
             }
 
-            let html = '<div class="flex flex-col gap-2">';
+            let html = '<div class="flex flex-col gap-4">';
 
             if (hasAction) {
-                html += `<button onclick="executeAction('${i.name}', '${escape(i.action)}'); closeModal()" class="btn btn-primary justify-between">
-                    <span>Default Action</span>
-                    <span class="text-xs opacity-75">↗</span>
-                 </button>`;
+                html += `<div>
+                    <div class="text-xs font-bold text-muted uppercase mb-2">Default Action</div>
+                    <button onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}'); closeModal()" class="btn btn-primary w-full justify-between">
+                        <span>Default Action</span>
+                        <span class="text-xs opacity-75">↗</span>
+                    </button>
+                </div>`;
             }
 
-            Object.entries(launchers).forEach(([label, cmd]) => {
-                html += `<button onclick="executeAction('${i.name}', '${escape(cmd)}'); closeModal()" class="btn btn-outline justify-between">
-                    <span>${label}</span>
-                    <span class="text-xs text-muted font-mono">${truncate(cmd, 30)}</span>
-                </button>`;
-            });
+            if (launcherKeys.length > 0) {
+                html += `<div>
+                    <div class="text-xs font-bold text-muted uppercase mb-2">Instance Launchers</div>
+                    <div class="flex flex-col gap-2">
+                        ${Object.entries(launchers).map(([label, cmd]) => `
+                        <button onclick="executeAction('${i.name}', '${escapeQuotes(cmd)}'); closeModal()" class="btn btn-outline flex-col items-start h-auto py-2 gap-1 w-full">
+                            <span class="font-bold">${label}</span>
+                            <span class="text-xs text-muted font-mono text-left break-all whitespace-normal opacity-75">${cmd}</span>
+                        </button>
+                        `).join('')}
+                    </div>
+                </div>`;
+            }
+
+            if (tmplKeys.length > 0) {
+                html += `<div>
+                    <div class="text-xs font-bold text-muted uppercase mb-2">Template Launchers</div>
+                    <div class="flex flex-col gap-2">
+                        ${Object.entries(tmplLaunchers).map(([label, cmd]) => `
+                        <button onclick="executeAction('${i.name}', '${escapeQuotes(cmd)}'); closeModal()" class="btn btn-outline flex-col items-start h-auto py-2 gap-1 w-full">
+                            <span class="font-bold">${label}</span>
+                            <span class="text-xs text-muted font-mono text-left break-all whitespace-normal opacity-75">${cmd}</span>
+                        </button>
+                        `).join('')}
+                    </div>
+                </div>`;
+            }
 
             html += '</div>';
             showModal(`Launch ${i.name}`, html);
@@ -1045,21 +1287,28 @@
             } else {
                 // Execute command via API
                 try {
-                    const response = await fetch('/api/execute-action', {
+                    const url = config.targetHost + '/api/execute-action';
+                    const opts = {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            instance_name: instanceName,
-                            action: action // Pass the specific command to execute? 
-                            // Wait, the API /api/execute-action usually takes instance_name and executes the *default* action.
-                            // If we want to execute an arbitrary launcher command, we might need a new API or param.
-                            // Let's check api.cpp.
-                        })
+                        headers: { 'Content-Type': 'application/json' }
+                    };
+
+                    // Add API key if configured
+                    if (config.apiKey) {
+                        opts.headers['X-VP-Key'] = config.apiKey;
+                    }
+
+                    opts.body = JSON.stringify({
+                        instance_name: instanceName,
+                        action: action
                     });
 
-                    // Wait, if I pass 'action' in body, does the API use it?
-                    // I need to check api.cpp. If not, I should probably add support for it.
-                    // For now, let's assume I need to update API too.
+                    const response = await fetch(url, opts);
+
+                    if (response.status === 401) {
+                        showSettings();
+                        throw new Error('Unauthorized - API key required');
+                    }
 
                     if (!response.ok) {
                         const error = await response.text();
@@ -1072,9 +1321,20 @@
         }
 
         // Modal Utils
-        function showModal(title, body) {
+        function showModal(title, body, buttons = null) {
             document.getElementById('modal-header').textContent = title;
             document.getElementById('modal-body').innerHTML = body;
+
+            // Setup footer buttons
+            const footer = document.getElementById('modal-footer');
+            if (buttons) {
+                footer.innerHTML = buttons.map(btn =>
+                    `<button onclick="${btn.onclick}" class="btn ${btn.class || 'btn-outline'}">${btn.text}</button>`
+                ).join('');
+            } else {
+                footer.innerHTML = '<button onclick="closeModal()" class="btn btn-outline">Close</button>';
+            }
+
             document.getElementById('modal-overlay').style.display = 'flex';
         }
         function closeModal() {
@@ -1091,6 +1351,7 @@
             if (!s || s.length <= n) return s;
             return s.substring(0, n) + '...';
         }
+        function escapeQuotes(s) { return s.replace(/'/g, "\\'"); }
 
         // Loop
         setInterval(() => {
@@ -1142,6 +1403,7 @@
         }, 1000);
 
         // Init
+        checkInitialSetup();
         loadInstances();
     </script>
 </body>

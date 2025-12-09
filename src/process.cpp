@@ -22,12 +22,11 @@ std::shared_ptr<Instance> startProcess(
     const std::string& name,
     const std::map<std::string, std::string>& vars
 ) {
-    // Check if instance already exists
-    if (state->instances.find(name) != state->instances.end()) {
-        throw std::runtime_error("instance " + name + " already exists");
-    }
+    // Generate unique ID
+    std::string instanceId = generateInstanceId(state, name);
 
     auto inst = std::make_shared<Instance>();
+    inst->id = instanceId;
     inst->name = name;
     inst->template_name = tmpl.id;
     inst->status = "starting";
@@ -45,10 +44,10 @@ std::shared_ptr<Instance> startProcess(
             std::string reqValue = (finalVars.find(rtype) != finalVars.end()) ? finalVars[rtype] : "";
             std::string value = allocateResource(state, rtype, reqValue);
             inst->resources[rtype] = value;
-            state->claimResource(rtype, value, name);
+            state->claimResource(rtype, value, instanceId);
             finalVars[rtype] = value;
         } catch (const std::exception& e) {
-            state->releaseResources(name);
+            state->releaseResources(instanceId);
             inst->status = "error";
             inst->error = std::string("resource allocation failed: ") + e.what();
             throw;
@@ -78,9 +77,9 @@ std::shared_ptr<Instance> startProcess(
             std::string value = allocateResource(state, counter, "");
             cmd = std::regex_replace(cmd, std::regex("%" + counter), value, std::regex_constants::format_first_only);
             inst->resources[counter] = value;
-            state->claimResource(counter, value, name);
+            state->claimResource(counter, value, instanceId);
         } catch (const std::exception& e) {
-            state->releaseResources(name);
+            state->releaseResources(instanceId);
             inst->status = "error";
             inst->error = std::string("counter allocation failed: ") + e.what();
             throw;
@@ -141,7 +140,7 @@ std::shared_ptr<Instance> startProcess(
     pid_t pid = fork();
 
     if (pid == -1) {
-        state->releaseResources(name);
+        state->releaseResources(instanceId);
         inst->status = "error";
         inst->error = "failed to fork process";
         throw std::runtime_error("failed to fork process");
@@ -175,16 +174,16 @@ std::shared_ptr<Instance> startProcess(
         inst->cwd = cwd;
     }
 
-    state->instances[name] = inst;
+    state->instances[instanceId] = inst;
     state->save();
 
     // Start reaper thread
-    std::thread([state, name, pid]() {
+    std::thread([state, instanceId, pid]() {
         int status;
         waitpid(pid, &status, 0);
 
         // Process has exited
-        auto it = state->instances.find(name);
+        auto it = state->instances.find(instanceId);
         if (it != state->instances.end() && it->second->pid == pid) {
             it->second->status = "stopped";
             it->second->pid = 0;
@@ -243,14 +242,14 @@ bool restartProcess(std::shared_ptr<State> state, std::shared_ptr<Instance> inst
             return false;
         }
 
-        state->claimResource(kv.first, kv.second, inst->name);
+        state->claimResource(kv.first, kv.second, inst->id);
     }
 
     // Start the process
     pid_t pid = fork();
 
     if (pid == -1) {
-        state->releaseResources(inst->name);
+        state->releaseResources(inst->id);
         inst->status = "error";
         inst->error = "failed to fork process";
         return false;
@@ -295,10 +294,6 @@ bool canManageProcess(int pid) {
 }
 
 std::shared_ptr<Instance> monitorProcess(std::shared_ptr<State> state, int pid, const std::string& name) {
-    if (state->instances.find(name) != state->instances.end()) {
-        throw std::runtime_error("instance " + name + " already exists");
-    }
-
     if (!isProcessRunning(pid)) {
         throw std::runtime_error("process " + std::to_string(pid) + " not running");
     }
@@ -308,7 +303,11 @@ std::shared_ptr<Instance> monitorProcess(std::shared_ptr<State> state, int pid, 
         throw std::runtime_error("cannot read process " + std::to_string(pid));
     }
 
+    // Generate unique ID
+    std::string instanceId = generateInstanceId(state, name);
+
     auto inst = std::make_shared<Instance>();
+    inst->id = instanceId;
     inst->name = name;
     inst->command = procInfo->cmdline;
     inst->pid = pid;
@@ -322,23 +321,23 @@ std::shared_ptr<Instance> monitorProcess(std::shared_ptr<State> state, int pid, 
         std::string key = (i == 0) ? "tcpport" : "tcpport" + std::to_string(i);
         std::string value = std::to_string(procInfo->ports[i]);
         inst->resources[key] = value;
-        state->claimResource(key, value, name);
+        state->claimResource(key, value, instanceId);
     }
 
     if (!procInfo->cwd.empty()) {
         inst->resources["workdir"] = procInfo->cwd;
     }
 
-    state->instances[name] = inst;
+    state->instances[instanceId] = inst;
     state->save();
 
     // Start monitoring thread
-    std::thread([state, name, pid]() {
+    std::thread([state, instanceId, pid]() {
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(2));
 
             if (!isProcessRunning(pid)) {
-                auto it = state->instances.find(name);
+                auto it = state->instances.find(instanceId);
                 if (it != state->instances.end() && it->second->pid == pid) {
                     it->second->status = "stopped";
                     it->second->pid = 0;
@@ -353,16 +352,16 @@ std::shared_ptr<Instance> monitorProcess(std::shared_ptr<State> state, int pid, 
 }
 
 std::shared_ptr<Instance> discoverAndImportProcess(std::shared_ptr<State> state, int pid, const std::string& name) {
-    if (state->instances.find(name) != state->instances.end()) {
-        throw std::runtime_error("instance " + name + " already exists");
-    }
-
     auto procInfo = discoverProcess(pid);
     if (!procInfo) {
         throw std::runtime_error("failed to discover process");
     }
 
+    // Generate unique ID
+    std::string instanceId = generateInstanceId(state, name);
+
     auto inst = std::make_shared<Instance>();
+    inst->id = instanceId;
     inst->name = name;
     inst->template_name = "discovered";
     inst->command = procInfo->cmdline;
@@ -371,23 +370,23 @@ std::shared_ptr<Instance> discoverAndImportProcess(std::shared_ptr<State> state,
     inst->started = time(nullptr);
     inst->managed = false;
 
-    state->instances[name] = inst;
+    state->instances[instanceId] = inst;
     state->save();
 
     return inst;
 }
 
 std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> state, int port, const std::string& name) {
-    if (state->instances.find(name) != state->instances.end()) {
-        throw std::runtime_error("instance " + name + " already exists");
-    }
-
     auto procInfo = discoverProcessOnPort(port);
     if (!procInfo) {
         throw std::runtime_error("failed to discover process on port " + std::to_string(port));
     }
 
+    // Generate unique ID
+    std::string instanceId = generateInstanceId(state, name);
+
     auto inst = std::make_shared<Instance>();
+    inst->id = instanceId;
     inst->name = name;
     inst->template_name = "discovered";
     inst->command = procInfo->cmdline;
@@ -397,7 +396,7 @@ std::shared_ptr<Instance> discoverAndImportProcessOnPort(std::shared_ptr<State> 
     inst->managed = false;
     inst->resources["tcpport"] = std::to_string(port);
 
-    state->instances[name] = inst;
+    state->instances[instanceId] = inst;
     state->save();
 
     return inst;
@@ -653,24 +652,40 @@ bool matchAndUpdateInstances(std::shared_ptr<State> state, const std::vector<std
                 // Simple match: if process name matches instance command name
                 // Note: instCmdName might be "node", procName might be "node"
                 if (instCmdName == procName || instCmdName == procCmdName) {
-                    // Match by CWD
-                    if (!instCwd.empty() && instCwd == proc.at("cwd")) {
-                        // Potential match found. Check ports if applicable.
-                        bool match = true;
-                        int pid = std::stoi(proc.at("pid"));
+                    bool match = true;
+                    int pid = std::stoi(proc.at("pid"));
 
-                        // Check all port resources
+                    // Check all port resources
+                        bool portsMatched = false;
+                        bool portsFailed = false;
+
                         for (const auto& res : inst->resources) {
                             if (res.first.find("port") != std::string::npos) {
                                 try {
                                     int port = std::stoi(res.second);
-                                    if (!isProcessListeningOnPort(pid, port)) {
-                                        match = false;
-                                        break;
+                                    if (isProcessListeningOnPort(pid, port)) {
+                                        portsMatched = true;
+                                    } else {
+                                        portsFailed = true;
                                     }
                                 } catch (...) {
                                     // Ignore invalid port values
                                 }
+                            }
+                        }
+
+                        // If we have ports and they all match, it's a strong match regardless of CWD
+                        // If we have ports and ANY failed, it's definitely not a match
+                        // If we have no ports, we rely on CWD and Name
+
+                        if (portsMatched && !portsFailed) {
+                            match = true;
+                        } else if (portsFailed) {
+                            match = false;
+                        } else {
+                            // No ports to check, rely on CWD and Name
+                            if (instCwd.empty() || instCwd != proc.at("cwd")) {
+                                match = false;
                             }
                         }
 
@@ -680,7 +695,6 @@ bool matchAndUpdateInstances(std::shared_ptr<State> state, const std::vector<std
                             inst->managed = true; // We found it, so we assume we can manage it (or at least monitor it)
                             break; // Stop looking for this instance
                         }
-                    }
                 }
             }
         }
@@ -714,6 +728,31 @@ std::string extractProcessName(const std::string& command) {
     }
 
     return exe;
+}
+
+std::string generateInstanceId(std::shared_ptr<State> state, const std::string& name) {
+    // Generate base ID: name-timestamp
+    time_t now = time(nullptr);
+    std::string baseId = name + "-" + std::to_string(now);
+
+    // Check if this ID already exists
+    if (state->instances.find(baseId) == state->instances.end()) {
+        return baseId;
+    }
+
+    // If it exists, append a counter
+    int counter = 1;
+    while (true) {
+        std::string candidateId = baseId + "-" + std::to_string(counter);
+        if (state->instances.find(candidateId) == state->instances.end()) {
+            return candidateId;
+        }
+        counter++;
+        if (counter > 1000) {
+            // Safety limit to prevent infinite loop
+            throw std::runtime_error("failed to generate unique instance ID");
+        }
+    }
 }
 
 } // namespace vp

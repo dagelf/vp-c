@@ -12,6 +12,8 @@
 #include <iostream>
 #include <thread>
 #include <fstream>
+#include <algorithm>
+#include <cctype>
 
 namespace vp {
 
@@ -28,17 +30,52 @@ std::string readFile(const std::string& path) {
 
 static std::shared_ptr<State> g_state;
 
-std::string handleRequest(const std::string& method, const std::string& path, const std::string& body) {
+static std::string getHeaderValue(const std::string& headers, const std::string& name) {
+    std::string lowerName = name;
+    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+    std::istringstream iss(headers);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        auto colon = line.find(':');
+        if (colon == std::string::npos) continue;
+        std::string hname = line.substr(0, colon);
+        std::string hval = line.substr(colon + 1);
+        // trim leading spaces
+        hval.erase(0, hval.find_first_not_of(" \t"));
+        std::transform(hname.begin(), hname.end(), hname.begin(), ::tolower);
+        if (hname == lowerName) return hval;
+    }
+    return "";
+}
+
+std::string handleRequest(const std::string& method, const std::string& path, const std::string& body, const std::string& headers) {
     std::ostringstream response;
 
-    // Handle CORS preflight
+    // Handle CORS preflight first (before auth)
     if (method == "OPTIONS") {
         response << "HTTP/1.1 204 No Content\r\n";
         response << "Access-Control-Allow-Origin: *\r\n";
         response << "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n";
-        response << "Access-Control-Allow-Headers: Content-Type\r\n";
+        response << "Access-Control-Allow-Headers: Content-Type, X-VP-Key\r\n";
         response << "\r\n";
         return response.str();
+    }
+
+    // Basic auth: require key for ALL paths (including root) if configured
+    if (!g_state->apiKey.empty()) {
+        std::string key = getHeaderValue(headers, "X-VP-Key");
+        if (key != g_state->apiKey) {
+            response << "HTTP/1.1 401 Unauthorized\r\n";
+            response << "Content-Type: text/plain\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
+            response << "Content-Length: 12\r\n";
+            response << "\r\n";
+            response << "Unauthorized";
+            return response.str();
+        }
     }
 
     // Serve web.html (embedded or from file for development)
@@ -260,9 +297,13 @@ std::string handleRequest(const std::string& method, const std::string& path, co
     if (path == "/api/execute-action" && method == "POST") {
         try {
             json req = json::parse(body);
-            std::string instanceName = req.value("instance_name", "");
+            std::string instanceId = req.value("instance_id", "");
+            // Fallback to instance_name for backwards compatibility
+            if (instanceId.empty()) {
+                instanceId = req.value("instance_name", "");
+            }
 
-            if (g_state->instances.find(instanceName) == g_state->instances.end()) {
+            if (g_state->instances.find(instanceId) == g_state->instances.end()) {
                 std::string error_body = R"({"error": "Instance not found"})";
                 response << "HTTP/1.1 404 Not Found\r\n";
                 response << "Content-Type: application/json\r\n";
@@ -272,7 +313,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
                 return response.str();
             }
 
-            auto inst = g_state->instances[instanceName];
+            auto inst = g_state->instances[instanceId];
             std::string actionToExecute = req.value("action", "");
             
             if (actionToExecute.empty()) {
@@ -416,14 +457,21 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         try {
             json req = json::parse(body);
             std::string action = req.value("action", "");
-            // Accept both 'name' and 'instance_id' for compatibility
-            std::string name = req.value("name", "");
-            if (name.empty()) {
-                name = req.value("instance_id", "");
-            }
 
             if (action == "start") {
                 std::string templateId = req.value("template", "");
+                std::string name = req.value("name", "");
+
+                if (templateId.empty() || name.empty()) {
+                    std::string error_body = R"({"error": "Template and name required"})";
+                    response << "HTTP/1.1 400 Bad Request\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Content-Length: " << error_body.length() << "\r\n";
+                    response << "\r\n";
+                    response << error_body;
+                    return response.str();
+                }
+
                 if (g_state->templates.find(templateId) == g_state->templates.end()) {
                     std::string error_body = R"({"error": "Template not found"})";
                     response << "HTTP/1.1 404 Not Found\r\n";
@@ -460,8 +508,24 @@ std::string handleRequest(const std::string& method, const std::string& path, co
                 }
                 return response.str();
             }
-            else if (action == "stop") {
-                if (g_state->instances.find(name) == g_state->instances.end()) {
+            else if (action == "stop" || action == "restart" || action == "delete") {
+                // Accept both 'id' and 'instance_id' for the instance identifier
+                std::string instanceId = req.value("id", "");
+                if (instanceId.empty()) {
+                    instanceId = req.value("instance_id", "");
+                }
+
+                if (instanceId.empty()) {
+                    std::string error_body = R"({"error": "Instance ID required"})";
+                    response << "HTTP/1.1 400 Bad Request\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Content-Length: " << error_body.length() << "\r\n";
+                    response << "\r\n";
+                    response << error_body;
+                    return response.str();
+                }
+
+                if (g_state->instances.find(instanceId) == g_state->instances.end()) {
                     std::string error_body = R"({"error": "Instance not found"})";
                     response << "HTTP/1.1 404 Not Found\r\n";
                     response << "Content-Type: application/json\r\n";
@@ -471,50 +535,40 @@ std::string handleRequest(const std::string& method, const std::string& path, co
                     return response.str();
                 }
 
-                bool success = stopProcess(g_state, g_state->instances[name]);
-                json result = {{"success", success}};
-                std::string body_str = result.dump(2);
-                response << "HTTP/1.1 200 OK\r\n";
-                response << "Content-Type: application/json\r\n";
-                response << "Content-Length: " << body_str.length() << "\r\n";
-                response << "\r\n";
-                response << body_str;
-                return response.str();
-            }
-            else if (action == "restart") {
-                if (g_state->instances.find(name) == g_state->instances.end()) {
-                    std::string error_body = R"({"error": "Instance not found"})";
-                    response << "HTTP/1.1 404 Not Found\r\n";
+                if (action == "stop") {
+                    bool success = stopProcess(g_state, g_state->instances[instanceId]);
+                    json result = {{"success", success}};
+                    std::string body_str = result.dump(2);
+                    response << "HTTP/1.1 200 OK\r\n";
                     response << "Content-Type: application/json\r\n";
-                    response << "Content-Length: " << error_body.length() << "\r\n";
+                    response << "Content-Length: " << body_str.length() << "\r\n";
                     response << "\r\n";
-                    response << error_body;
+                    response << body_str;
                     return response.str();
                 }
-
-                bool success = restartProcess(g_state, g_state->instances[name]);
-                json result = {{"success", success}};
-                std::string body_str = result.dump(2);
-                response << "HTTP/1.1 200 OK\r\n";
-                response << "Content-Type: application/json\r\n";
-                response << "Content-Length: " << body_str.length() << "\r\n";
-                response << "\r\n";
-                response << body_str;
-                return response.str();
-            }
-            else if (action == "delete") {
-                if (g_state->instances.find(name) != g_state->instances.end()) {
-                    g_state->instances.erase(name);
+                else if (action == "restart") {
+                    bool success = restartProcess(g_state, g_state->instances[instanceId]);
+                    json result = {{"success", success}};
+                    std::string body_str = result.dump(2);
+                    response << "HTTP/1.1 200 OK\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Content-Length: " << body_str.length() << "\r\n";
+                    response << "\r\n";
+                    response << body_str;
+                    return response.str();
+                }
+                else if (action == "delete") {
+                    g_state->instances.erase(instanceId);
                     g_state->save();
+                    json result = {{"success", true}};
+                    std::string body_str = result.dump(2);
+                    response << "HTTP/1.1 200 OK\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Content-Length: " << body_str.length() << "\r\n";
+                    response << "\r\n";
+                    response << body_str;
+                    return response.str();
                 }
-                json result = {{"success", true}};
-                std::string body_str = result.dump(2);
-                response << "HTTP/1.1 200 OK\r\n";
-                response << "Content-Type: application/json\r\n";
-                response << "Content-Length: " << body_str.length() << "\r\n";
-                response << "\r\n";
-                response << body_str;
-                return response.str();
             }
         } catch (const std::exception& e) {
             std::string error_body = R"({"error": "Invalid request"})";
@@ -597,7 +651,8 @@ void handleClient(int clientSocket) {
             body = request.substr(bodyPos + 4);
         }
 
-        std::string response = handleRequest(method, path, body);
+        std::string headersStr = bodyPos != std::string::npos ? request.substr(0, bodyPos) : request;
+        std::string response = handleRequest(method, path, body, headersStr);
         
         // Write response in chunks if needed (though write usually handles it)
         size_t totalWritten = 0;

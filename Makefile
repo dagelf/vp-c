@@ -65,6 +65,16 @@ CMAKE_BINARY_DIR = /home/coenraad/vp-c
 #=============================================================================
 # Targets provided globally by CMake.
 
+# Special rule for the target test
+test:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running tests..."
+	/usr/bin/ctest $(ARGS)
+.PHONY : test
+
+# Special rule for the target test
+test/fast: test
+.PHONY : test/fast
+
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake cache editor..."
@@ -174,12 +184,39 @@ vp/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/build
 .PHONY : vp/fast
 
+#=============================================================================
+# Target rules for targets named vp_test
+
+# Build rule for target.
+vp_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 vp_test
+.PHONY : vp_test
+
+# fast build rule for target.
+vp_test/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/build
+.PHONY : vp_test/fast
+
+#=============================================================================
+# Target rules for targets named run_tests
+
+# Build rule for target.
+run_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 run_tests
+.PHONY : run_tests
+
+# fast build rule for target.
+run_tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_tests.dir/build.make CMakeFiles/run_tests.dir/build
+.PHONY : run_tests/fast
+
 src/api.o: src/api.cpp.o
 .PHONY : src/api.o
 
 # target to build an object file
 src/api.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/api.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/api.cpp.o
 .PHONY : src/api.cpp.o
 
 src/api.i: src/api.cpp.i
@@ -188,6 +225,7 @@ src/api.i: src/api.cpp.i
 # target to preprocess a source file
 src/api.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/api.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/api.cpp.i
 .PHONY : src/api.cpp.i
 
 src/api.s: src/api.cpp.s
@@ -196,6 +234,7 @@ src/api.s: src/api.cpp.s
 # target to generate assembly for a file
 src/api.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/api.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/api.cpp.s
 .PHONY : src/api.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -228,6 +267,7 @@ src/process.o: src/process.cpp.o
 # target to build an object file
 src/process.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/process.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/process.cpp.o
 .PHONY : src/process.cpp.o
 
 src/process.i: src/process.cpp.i
@@ -236,6 +276,7 @@ src/process.i: src/process.cpp.i
 # target to preprocess a source file
 src/process.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/process.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/process.cpp.i
 .PHONY : src/process.cpp.i
 
 src/process.s: src/process.cpp.s
@@ -244,6 +285,7 @@ src/process.s: src/process.cpp.s
 # target to generate assembly for a file
 src/process.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/process.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/process.cpp.s
 .PHONY : src/process.cpp.s
 
 src/procutil.o: src/procutil.cpp.o
@@ -252,6 +294,7 @@ src/procutil.o: src/procutil.cpp.o
 # target to build an object file
 src/procutil.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/procutil.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/procutil.cpp.o
 .PHONY : src/procutil.cpp.o
 
 src/procutil.i: src/procutil.cpp.i
@@ -260,6 +303,7 @@ src/procutil.i: src/procutil.cpp.i
 # target to preprocess a source file
 src/procutil.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/procutil.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/procutil.cpp.i
 .PHONY : src/procutil.cpp.i
 
 src/procutil.s: src/procutil.cpp.s
@@ -268,6 +312,7 @@ src/procutil.s: src/procutil.cpp.s
 # target to generate assembly for a file
 src/procutil.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/procutil.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/procutil.cpp.s
 .PHONY : src/procutil.cpp.s
 
 src/resource.o: src/resource.cpp.o
@@ -276,6 +321,7 @@ src/resource.o: src/resource.cpp.o
 # target to build an object file
 src/resource.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/resource.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/resource.cpp.o
 .PHONY : src/resource.cpp.o
 
 src/resource.i: src/resource.cpp.i
@@ -284,6 +330,7 @@ src/resource.i: src/resource.cpp.i
 # target to preprocess a source file
 src/resource.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/resource.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/resource.cpp.i
 .PHONY : src/resource.cpp.i
 
 src/resource.s: src/resource.cpp.s
@@ -292,6 +339,7 @@ src/resource.s: src/resource.cpp.s
 # target to generate assembly for a file
 src/resource.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/resource.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/resource.cpp.s
 .PHONY : src/resource.cpp.s
 
 src/state.o: src/state.cpp.o
@@ -300,6 +348,7 @@ src/state.o: src/state.cpp.o
 # target to build an object file
 src/state.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/state.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/state.cpp.o
 .PHONY : src/state.cpp.o
 
 src/state.i: src/state.cpp.i
@@ -308,6 +357,7 @@ src/state.i: src/state.cpp.i
 # target to preprocess a source file
 src/state.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/state.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/state.cpp.i
 .PHONY : src/state.cpp.i
 
 src/state.s: src/state.cpp.s
@@ -316,7 +366,32 @@ src/state.s: src/state.cpp.s
 # target to generate assembly for a file
 src/state.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp.dir/build.make CMakeFiles/vp.dir/src/state.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/state.cpp.s
 .PHONY : src/state.cpp.s
+
+src/test_main.o: src/test_main.cpp.o
+.PHONY : src/test_main.o
+
+# target to build an object file
+src/test_main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/test_main.cpp.o
+.PHONY : src/test_main.cpp.o
+
+src/test_main.i: src/test_main.cpp.i
+.PHONY : src/test_main.i
+
+# target to preprocess a source file
+src/test_main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/test_main.cpp.i
+.PHONY : src/test_main.cpp.i
+
+src/test_main.s: src/test_main.cpp.s
+.PHONY : src/test_main.s
+
+# target to generate assembly for a file
+src/test_main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vp_test.dir/build.make CMakeFiles/vp_test.dir/src/test_main.cpp.s
+.PHONY : src/test_main.cpp.s
 
 # Help Target
 help:
@@ -330,7 +405,10 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... test"
+	@echo "... run_tests"
 	@echo "... vp"
+	@echo "... vp_test"
 	@echo "... src/api.o"
 	@echo "... src/api.i"
 	@echo "... src/api.s"
@@ -349,6 +427,9 @@ help:
 	@echo "... src/state.o"
 	@echo "... src/state.i"
 	@echo "... src/state.s"
+	@echo "... src/test_main.o"
+	@echo "... src/test_main.i"
+	@echo "... src/test_main.s"
 .PHONY : help
 
 

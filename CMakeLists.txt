@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pthread")
 
+enable_testing()
+
 # Generate embedded web.html header
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/web_html.hpp
@@ -43,6 +45,34 @@ target_include_directories(vp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Link libraries
 target_link_libraries(vp pthread)
+
+# Tests
+add_executable(vp_test
+    src/test_main.cpp
+    src/state.cpp
+    src/process.cpp
+    src/resource.cpp
+    src/procutil.cpp
+    src/api.cpp
+    src/web_html.hpp
+    src/types.hpp
+    src/state.hpp
+    src/process.hpp
+    src/resource.hpp
+    src/procutil.hpp
+    src/api.hpp
+)
+target_include_directories(vp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(vp_test pthread)
+
+add_test(NAME vp_test COMMAND vp_test)
+
+# Convenience target: make test (ctest)
+add_custom_target(run_tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS vp_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # Install target
 install(TARGETS vp DESTINATION bin)
