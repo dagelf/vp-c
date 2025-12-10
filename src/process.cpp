@@ -39,9 +39,35 @@ std::shared_ptr<Instance> startProcess(
     }
 
     // Phase 1: Allocate resources
+    // Check for preview-cached resources first
+    std::map<std::string, std::string> cachedResources;
+    {
+        std::lock_guard<std::mutex> lock(state->previewMutex);
+        if (state->resourcePreviews.find(name) != state->resourcePreviews.end()) {
+            time_t previewTime = state->resourcePreviewTimes[name];
+            time_t now = time(nullptr);
+            // Use cached resources if less than 60 seconds old
+            if (now - previewTime < 60) {
+                cachedResources = state->resourcePreviews[name];
+            }
+            // Clear the cache entry after use
+            state->resourcePreviews.erase(name);
+            state->resourcePreviewTimes.erase(name);
+        }
+    }
+
     for (const auto& rtype : tmpl.resources) {
         try {
-            std::string reqValue = (finalVars.find(rtype) != finalVars.end()) ? finalVars[rtype] : "";
+            std::string reqValue;
+            // First check if user provided explicit value in vars
+            if (finalVars.find(rtype) != finalVars.end() && !finalVars[rtype].empty()) {
+                reqValue = finalVars[rtype];
+            }
+            // Otherwise check cache
+            else if (cachedResources.find(rtype) != cachedResources.end()) {
+                reqValue = cachedResources[rtype];
+            }
+
             std::string value = allocateResource(state, rtype, reqValue);
             inst->resources[rtype] = value;
             state->claimResource(rtype, value, instanceId);

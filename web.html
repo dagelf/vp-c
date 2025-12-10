@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vibecoding Process Manager</title>
+    <title>VP Process Manager</title>
     <style>
         :root {
             --bg: #ffffff;
@@ -456,20 +456,6 @@
         g
 
         /* Scrollbar */
-        #filter-badge {
-            position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            z-index: 50;
-            background: var(--primary);
-            color: var(--primary-fg);
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-weight: 600;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            display: none;
-        }
-
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -488,8 +474,6 @@
 </head>
 
 <body>
-    <div id="filter-badge">Filter: <span id="filter-text"></span></div>
-
     <header>
         <div class="flex items-center gap-2 flex-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -498,6 +482,7 @@
                 <path d="m4 17 6-6-6-6"></path>
             </svg>
             <span class="text-lg">VP Manager</span>
+            <span id="filter-indicator" style="display: none; color: var(--primary); font-weight: 600;"></span>
         </div>
 
         <div class="flex items-center gap-2">
@@ -543,7 +528,7 @@
                     <label class="flex items-center gap-2 text-sm cursor-pointer">
                         <input type="checkbox" id="auto-refresh" checked> Auto
                     </label>
-                    <button onclick="loadInstances()" class="btn btn-outline btn-sm">Refresh</button>
+                    <button onclick="if(!state.waitingForAuth) loadInstances()" class="btn btn-outline btn-sm">Refresh</button>
                 </div>
             </div>
             <div id="list-instances" class="grid overflow-auto p-1"></div>
@@ -633,53 +618,99 @@
 
     <script>
         // --- Configuration ---
+        // Determine source host (where this page was loaded from)
+        const sourceHost = window.location.origin;
+
         const config = {
+            sourceHost: sourceHost,
+            sourceApiKey: localStorage.getItem('vp-source-api-key') || '',
             targetHost: localStorage.getItem('vp-target-host') || 'http://127.0.0.1:8080',
-            apiKey: localStorage.getItem('vp-api-key') || ''
+            targetApiKey: localStorage.getItem('vp-target-api-key') || ''
         };
 
-        function saveConfig() {
+        function saveConfigToLocalStorage() {
+            localStorage.setItem('vp-source-api-key', config.sourceApiKey);
             localStorage.setItem('vp-target-host', config.targetHost);
-            localStorage.setItem('vp-api-key', config.apiKey);
+            localStorage.setItem('vp-target-api-key', config.targetApiKey);
         }
 
         function showSettings() {
             const html = `
                 <div class="flex flex-col gap-4">
-                    <div>
-                        <label class="block text-sm font-semibold mb-2">Target Host</label>
-                        <input type="text" id="setting-host" class="input w-full" value="${config.targetHost}" placeholder="http://127.0.0.1:8080">
-                        <p class="text-xs text-muted mt-1">The host where vp server is running</p>
+                    <div class="p-3 bg-muted rounded">
+                        <div class="text-sm font-bold mb-2">Source Host (Current Server)</div>
+                        <div class="text-xs text-muted mb-2">${config.sourceHost}</div>
+                        <label class="block text-xs font-semibold mb-1">API Key</label>
+                        <input type="password" id="setting-source-key" class="input w-full" value="${config.sourceApiKey}" placeholder="Enter source API key">
+                        <p class="text-xs text-muted mt-1">For reading templates & instances</p>
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold mb-2">API Key</label>
-                        <input type="password" id="setting-key" class="input w-full" value="${config.apiKey}" placeholder="Enter API key">
-                        <p class="text-xs text-muted mt-1">Get key with: vp key</p>
+                    <div class="p-3 bg-muted rounded">
+                        <label class="block text-sm font-bold mb-2">Target Host (For Launching)</label>
+                        <input type="text" id="setting-target-host" class="input w-full mb-2" value="${config.targetHost}" placeholder="http://127.0.0.1:8080">
+                        <label class="block text-xs font-semibold mb-1">API Key</label>
+                        <input type="password" id="setting-target-key" class="input w-full" value="${config.targetApiKey}" placeholder="Enter target API key">
+                        <p class="text-xs text-muted mt-1">Where instances will be launched</p>
                     </div>
                 </div>
             `;
 
-            showModal('Settings', html, [
-                { text: 'Cancel', class: 'btn-outline', onclick: 'closeModal()' },
-                { text: 'Save', class: 'btn-primary', onclick: 'saveSettings()' }
-            ]);
+            // If waiting for auth, don't show Cancel - user must enter valid credentials
+            const buttons = state.waitingForAuth ?
+                [{ text: 'Save', class: 'btn-primary', onclick: 'saveSettings()' }] :
+                [{ text: 'Cancel', class: 'btn-outline', onclick: 'closeModal()' },
+                 { text: 'Save', class: 'btn-primary', onclick: 'saveSettings()' }];
+
+            showModal('Settings', html, buttons);
         }
 
-        function saveSettings() {
-            config.targetHost = document.getElementById('setting-host').value.trim();
-            config.apiKey = document.getElementById('setting-key').value.trim();
-            saveConfig();
-            closeModal();
-            // Clear auth waiting flag and reload current tab to test new settings
-            state.waitingForAuth = false;
-            rerenderCurrentTab();
+        async function saveSettings() {
+            config.sourceApiKey = document.getElementById('setting-source-key').value.trim();
+            const targetHostInput = document.getElementById('setting-target-host');
+            const targetKeyInput = document.getElementById('setting-target-key');
+
+            config.targetHost = targetHostInput ? targetHostInput.value.trim() : config.targetHost;
+            config.targetApiKey = targetKeyInput ? targetKeyInput.value.trim() : config.targetApiKey;
+
+            // If source and target are same host, use same key
+            if (config.sourceHost === config.targetHost) {
+                config.targetApiKey = config.sourceApiKey;
+            }
+
+            saveConfigToLocalStorage();
+
+            // Test if the new credentials work
+            try {
+                const testResult = await fetch(config.sourceHost + '/api/instances', {
+                    headers: config.sourceApiKey ? { 'X-VP-Key': config.sourceApiKey } : {}
+                });
+
+                if (testResult.ok) {
+                    // Auth succeeded - close modal and proceed
+                    closeModal();
+                    state.waitingForAuth = false;
+                    loadInstances();
+                } else if (testResult.status === 401) {
+                    // Auth failed - show error but keep modal open
+                    alert('API key rejected. Please enter a valid key.');
+                } else {
+                    // Other error (500, 404, etc) - close modal, might be temporary
+                    closeModal();
+                    state.waitingForAuth = false;
+                    rerenderCurrentTab();
+                }
+            } catch (e) {
+                // Network error - close modal, might be temporary
+                closeModal();
+                state.waitingForAuth = false;
+                rerenderCurrentTab();
+            }
         }
 
         // Check if we need to prompt for API key on first use
         function checkInitialSetup() {
-            // Try a simple API call
-            fetch(config.targetHost + '/api/instances', {
-                headers: config.apiKey ? { 'X-VP-Key': config.apiKey } : {}
+            // Try a simple API call to source host
+            fetch(config.sourceHost + '/api/instances', {
+                headers: config.sourceApiKey ? { 'X-VP-Key': config.sourceApiKey } : {}
             }).then(res => {
                 if (res.status === 401) {
                     // Need API key
@@ -687,10 +718,13 @@
                         state.waitingForAuth = true;
                         showSettings();
                     }
+                } else if (res.ok) {
+                    // Auth succeeded - load instances
+                    loadInstances();
                 }
             }).catch(err => {
-                // Connection error - might need to configure host
-                if (!config.apiKey && !state.waitingForAuth) {
+                // Connection error - might need to configure
+                if (!config.sourceApiKey && !state.waitingForAuth) {
                     state.waitingForAuth = true;
                     showSettings();
                 }
@@ -709,16 +743,16 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="flex items-center gap-2">
-                            <button onclick="showLaunchers('${i.name}', event)" class="font-semibold btn btn-sm btn-outline border-0 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Launchers">${i.name}</button>
+                            <button onclick="showLaunchers('${i.id}', event)" class="font-semibold btn btn-sm btn-outline border-0 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Launchers">${i.name}</button>
                             <span class="badge ${badge}">${i.status}</span>
                         </div>
                         <div class="flex gap-1">
                             ${running ?
-                        `<button onclick="apiAction('stop', '${i.name}')" class="btn btn-outline btn-icon" title="Stop">■</button>` :
-                        `<button onclick="apiAction('restart', '${i.name}')" class="btn btn-outline btn-icon" title="Start">▶</button>`
+                        `<button onclick="apiAction('stop', '${i.id}')" class="btn btn-outline btn-icon" title="Stop">■</button>` :
+                        `<button onclick="apiAction('restart', '${i.id}')" class="btn btn-outline btn-icon" title="Start">▶</button>`
                     }
-                            <button onclick="addAsTemplate('${i.name}')" class="btn btn-outline btn-icon" title="Save as Template">+</button>
-                            <button onclick="apiAction('delete', '${i.name}')" class="btn btn-outline btn-icon text-error-text" title="Delete">✕</button>
+                            <button onclick="addAsTemplate('${i.id}')" class="btn btn-outline btn-icon" title="Save as Template">+</button>
+                            <button onclick="apiAction('delete', '${i.id}')" class="btn btn-outline btn-icon text-error-text" title="Delete">✕</button>
                             ${i.action ? `<button onclick="window.open('${i.action}')" class="btn btn-primary btn-icon">↗</button>` : ''}
                         </div>
                     </div>
@@ -812,20 +846,18 @@
                 return;
             }
 
-            updateFilterUI();
+            // Update filter indicator
+            const filterIndicator = document.getElementById('filter-indicator');
+            if (state.filter) {
+                filterIndicator.textContent = `(filter: ${state.filter})`;
+                filterIndicator.style.display = 'inline';
+            } else {
+                filterIndicator.style.display = 'none';
+            }
+
             rerenderCurrentTab();
         });
 
-        function updateFilterUI() {
-            const badge = document.getElementById('filter-badge');
-            const text = document.getElementById('filter-text');
-            if (state.filter) {
-                badge.style.display = 'block';
-                text.textContent = state.filter;
-            } else {
-                badge.style.display = 'none';
-            }
-        }
 
         function rerenderCurrentTab() {
             if (state.activeTab === 'instances') renderInstances();
@@ -876,10 +908,21 @@
             else if (tab === 'config') loadConfig();
         }
 
-        // API
+        // API - with dual-host support
+        // Launch operations go to target host, everything else goes to source host
         async function fetchAPI(endpoint, method = 'GET', body = null) {
             try {
-                const url = config.targetHost + endpoint;
+                // Determine if this is a launch operation
+                const isLaunchOperation = (
+                    endpoint === '/api/instances' && method === 'POST' &&
+                    body && (body.action === 'start' || body.template)
+                ) || endpoint === '/api/preview-resources';
+
+                // Choose host and key based on operation
+                const host = isLaunchOperation ? config.targetHost : config.sourceHost;
+                const apiKey = isLaunchOperation ? config.targetApiKey : config.sourceApiKey;
+
+                const url = host + endpoint;
                 const opts = {
                     method,
                     headers: {
@@ -888,8 +931,8 @@
                 };
 
                 // Add API key if configured
-                if (config.apiKey) {
-                    opts.headers['X-VP-Key'] = config.apiKey;
+                if (apiKey) {
+                    opts.headers['X-VP-Key'] = apiKey;
                 }
 
                 if (body) opts.body = JSON.stringify(body);
@@ -1133,53 +1176,39 @@
             showLaunchDialog(t);
         }
 
-        // Helper function to calculate next available resource value
-        function getNextAvailableResource(resType) {
-            const typeInfo = state.types[resType];
-            if (!typeInfo) return null;
-
-            // For counter-based resources (like tcpport, vncport)
-            if (typeInfo.counter) {
-                const start = typeInfo.start || 0;
-                const end = typeInfo.end || 65535;
-
-                // Get all currently allocated resources of this type
-                const allocated = new Set();
-                for (const key in state.resources) {
-                    const res = state.resources[key];
-                    if (res.type === resType) {
-                        const val = parseInt(res.value);
-                        if (!isNaN(val)) {
-                            allocated.add(val);
-                        }
-                    }
-                }
-
-                // Find the first free value in the range
-                for (let i = start; i <= end; i++) {
-                    if (!allocated.has(i)) {
-                        return i.toString();
-                    }
-                }
-            }
-
-            // For non-counter resources, return null (will auto-allocate)
-            return null;
-        }
-
         async function showLaunchDialog(template) {
-            // Ensure we have resource types and current allocations loaded
-            if (Object.keys(state.types).length === 0) {
-                await loadResourceTypes();
-            }
-            if (Object.keys(state.resources).length === 0) {
-                await loadResources();
+            // Get default instance name
+            const defaultName = template.id + '-instance';
+
+            // Preview resource allocation
+            let previewedResources = {};
+            if (template.resources && template.resources.length > 0) {
+                try {
+                    const result = await fetchAPI('/api/preview-resources', 'POST', {
+                        template: template.id,
+                        name: defaultName,
+                        vars: template.vars || {}
+                    });
+                    if (result) {
+                        previewedResources = result;
+                    }
+                } catch (e) {
+                    console.warn('Failed to preview resources:', e);
+                    // Keep previewedResources as empty object
+                }
             }
 
             // Extract all variables from command and template
+            // BUT exclude resources (they go in their own section)
+            const resourceSet = new Set(template.resources || []);
             const allVars = new Set(Object.keys(template.vars || {}));
             const commandVars = (template.command.match(/\${([^}]+)}/g) || []).map(m => m.slice(2, -1));
-            commandVars.forEach(v => allVars.add(v));
+            commandVars.forEach(v => {
+                // Only add if it's not a resource
+                if (!resourceSet.has(v)) {
+                    allVars.add(v);
+                }
+            });
 
             // Build the dialog HTML
             let html = '<div class="flex flex-col gap-4" style="max-height: 60vh; overflow-y: auto;">';
@@ -1192,7 +1221,7 @@
                 </div>
             `;
 
-            // Variables Section
+            // Variables Section (excluding resources)
             if (allVars.size > 0) {
                 html += '<div><div class="text-xs font-bold text-muted uppercase mb-2">Variables</div>';
                 allVars.forEach(varName => {
@@ -1211,16 +1240,14 @@
             if (template.resources && template.resources.length > 0) {
                 html += '<div><div class="text-xs font-bold text-muted uppercase mb-2">Required Resources</div>';
                 template.resources.forEach(res => {
-                    // Calculate next available value for this resource type
-                    const nextValue = getNextAvailableResource(res);
-                    const placeholder = nextValue ? `Next available: ${nextValue}` : 'Auto-allocate';
-                    const value = nextValue || '';
+                    const previewedValue = previewedResources[res] || '';
+                    const placeholder = previewedValue ? `Allocated: ${previewedValue}` : 'Auto-allocate';
 
                     html += `
                         <div class="mb-3">
                             <label class="block text-xs text-muted mb-1">${res}</label>
-                            <input type="text" id="res-${res}" class="input w-full" placeholder="${placeholder}" value="${value}">
-                            <p class="text-xs text-muted mt-1">Editable - will auto-allocate if empty</p>
+                            <input type="text" id="res-${res}" class="input w-full" placeholder="${placeholder}" value="${previewedValue}" oninput="updateCommandPreview('${template.id}')">
+                            <p class="text-xs text-muted mt-1">Editable - cached for 60 seconds</p>
                         </div>
                     `;
                 });
@@ -1234,7 +1261,7 @@
                         <span>Command Preview</span>
                         <button onclick="updateCommandPreview('${template.id}')" class="btn btn-outline btn-sm" style="height: 1.5rem; font-size: 0.65rem; padding: 0 0.5rem;">Update</button>
                     </div>
-                    <textarea id="launch-command" class="input w-full font-mono text-xs" rows="4" style="resize: vertical; padding: 0.5rem;">${escapeHtml(template.command)}</textarea>
+                    <textarea id="launch-command" class="input w-full font-mono text-xs" style="resize: vertical; padding: 0.5rem; min-height: 120px; height: auto; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(template.command)}</textarea>
                     <p class="text-xs text-muted mt-1">Edit the final command before launch</p>
                 </div>
             `;
@@ -1271,6 +1298,17 @@
                     cmd = cmd.replace(new RegExp('\\$\\{' + varName + '\\}', 'g'), value);
                 }
             });
+
+            // Replace all resources
+            if (template.resources) {
+                template.resources.forEach(resType => {
+                    const input = document.getElementById(`res-${resType}`);
+                    if (input) {
+                        const value = input.value;
+                        cmd = cmd.replace(new RegExp('\\$\\{' + resType + '\\}', 'g'), value);
+                    }
+                });
+            }
 
             // Update the command textarea
             const commandField = document.getElementById('launch-command');
@@ -1337,8 +1375,8 @@
             return div.innerHTML;
         }
 
-        async function addAsTemplate(name) {
-            const i = state.instances[name];
+        async function addAsTemplate(instanceId) {
+            const i = state.instances[instanceId];
             if (!i) return;
             const id = prompt('Template ID:', i.name + '-template');
             if (!id) return;
@@ -1382,8 +1420,8 @@
         }
 
         // Launchers
-        function showLaunchers(name, event) {
-            const i = state.instances[name];
+        function showLaunchers(instanceId, event) {
+            const i = state.instances[instanceId];
             if (!i) return;
 
             const launchers = i.launchers || {};
@@ -1497,8 +1535,8 @@
                     };
 
                     // Add API key if configured
-                    if (config.apiKey) {
-                        opts.headers['X-VP-Key'] = config.apiKey;
+                    if (config.targetApiKey) {
+                        opts.headers['X-VP-Key'] = config.targetApiKey;
                     }
 
                     opts.body = JSON.stringify({
@@ -1542,10 +1580,8 @@
         }
         function closeModal() {
             document.getElementById('modal-overlay').style.display = 'none';
-            // If user cancels auth prompt, allow showing it again on next API call
-            if (state.waitingForAuth) {
-                state.waitingForAuth = false;
-            }
+            // Keep waitingForAuth true if user cancels without entering a key
+            // This prevents modal spam on every auto-refresh
         }
 
         // Utils
@@ -1592,18 +1628,9 @@
                 }
             });
 
-            if (state.activeTab === 'instances' && state.lastUpdate.instances > 0) {
-                // Re-render for stale badge update
-                // Only if we are crossing the boundary? 
-                // For simplicity, we can re-render if we haven't typed a filter recently?
-                // Actually, re-rendering every second is fine for this app size.
-                if (!state.filter) renderInstances(); // Avoid interrupting typing? No, typing is handled by keydown.
-                // But re-rendering might lose focus or selection? We don't have inputs in cards.
-                renderInstances();
-            }
 
-            // Auto Refresh
-            if (auto && visible) {
+            // Auto Refresh - but don't spam API if waiting for auth
+            if (auto && visible && !state.waitingForAuth) {
                 if (state.activeTab === 'instances' && (now - state.lastUpdate.instances > 1000)) loadInstances();
                 if (state.activeTab === 'discover' && (now - state.lastUpdate.discover > 2000)) discoverProcesses();
             }
@@ -1611,7 +1638,8 @@
 
         // Init
         checkInitialSetup();
-        loadInstances();
+        // Don't call loadInstances() here - checkInitialSetup() will show settings if needed
+        // After user enters valid key, saveSettings() will trigger the first load
     </script>
 </body>
 

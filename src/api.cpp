@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <cstring>
 #include <sstream>
 #include <iostream>
@@ -162,6 +163,23 @@ std::string handleRequest(const std::string& method, const std::string& path, co
             types_json[key] = *value;
         }
         std::string body_str = types_json.dump(2);
+
+        response << "HTTP/1.1 200 OK\r\n";
+        response << "Content-Type: application/json\r\n";
+        response << "Access-Control-Allow-Origin: *\r\n";
+        response << "Content-Length: " << body_str.length() << "\r\n";
+        response << "\r\n";
+        response << body_str;
+        return response.str();
+    }
+
+    // GET /api/debug/key - Show stored API key (for debugging)
+    if (path == "/api/debug/key" && method == "GET") {
+        json result;
+        result["stored_key"] = g_state->apiKey;
+        result["key_length"] = g_state->apiKey.length();
+        result["key_empty"] = g_state->apiKey.empty();
+        std::string body_str = result.dump(2);
 
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: application/json\r\n";
@@ -454,6 +472,86 @@ std::string handleRequest(const std::string& method, const std::string& path, co
         }
     }
 
+    // POST /api/preview-resources - Preview resource allocation for a template
+    if (path == "/api/preview-resources" && method == "POST") {
+        try {
+            json req = json::parse(body);
+            std::string templateId = req.value("template", "");
+            std::string name = req.value("name", "");
+
+            if (templateId.empty() || name.empty()) {
+                std::string error_body = R"({"error": "Template and name required"})";
+                response << "HTTP/1.1 400 Bad Request\r\n";
+                response << "Content-Type: application/json\r\n";
+                response << "Content-Length: " << error_body.length() << "\r\n";
+                response << "\r\n";
+                response << error_body;
+                return response.str();
+            }
+
+            if (g_state->templates.find(templateId) == g_state->templates.end()) {
+                std::string error_body = R"({"error": "Template not found"})";
+                response << "HTTP/1.1 404 Not Found\r\n";
+                response << "Content-Type: application/json\r\n";
+                response << "Content-Length: " << error_body.length() << "\r\n";
+                response << "\r\n";
+                response << error_body;
+                return response.str();
+            }
+
+            const auto& tmpl = *g_state->templates[templateId];
+            std::map<std::string, std::string> vars;
+            if (req.contains("vars")) {
+                for (auto& [key, value] : req["vars"].items()) {
+                    vars[key] = value.get<std::string>();
+                }
+            }
+
+            // Allocate resources (temporarily)
+            std::map<std::string, std::string> previewResources;
+            for (const auto& rtype : tmpl.resources) {
+                try {
+                    std::string reqValue = (vars.find(rtype) != vars.end()) ? vars[rtype] : "";
+                    std::string value = allocateResource(g_state, rtype, reqValue);
+                    previewResources[rtype] = value;
+                } catch (const std::exception& e) {
+                    std::string error_body = R"({"error": "Resource preview failed: )" + std::string(e.what()) + R"("})";
+                    response << "HTTP/1.1 500 Internal Server Error\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Content-Length: " << error_body.length() << "\r\n";
+                    response << "\r\n";
+                    response << error_body;
+                    return response.str();
+                }
+            }
+
+            // Cache the preview
+            {
+                std::lock_guard<std::mutex> lock(g_state->previewMutex);
+                g_state->resourcePreviews[name] = previewResources;
+                g_state->resourcePreviewTimes[name] = time(nullptr);
+            }
+
+            // Return the preview
+            json result = previewResources;
+            std::string body_str = result.dump(2);
+            response << "HTTP/1.1 200 OK\r\n";
+            response << "Content-Type: application/json\r\n";
+            response << "Content-Length: " << body_str.length() << "\r\n";
+            response << "\r\n";
+            response << body_str;
+            return response.str();
+        } catch (const std::exception& e) {
+            std::string error_body = R"({"error": ")" + std::string(e.what()) + R"("})";
+            response << "HTTP/1.1 500 Internal Server Error\r\n";
+            response << "Content-Type: application/json\r\n";
+            response << "Content-Length: " << error_body.length() << "\r\n";
+            response << "\r\n";
+            response << error_body;
+            return response.str();
+        }
+    }
+
     // POST /api/instances - Start/stop/restart/delete instances
     if (path == "/api/instances" && method == "POST") {
         try {
@@ -683,6 +781,12 @@ bool serveHTTP(const std::string& addr, std::shared_ptr<State> state) {
     if (serverSocket == -1) {
         std::cerr << "Failed to create socket\n";
         return false;
+    }
+
+    // Set FD_CLOEXEC to prevent child processes from inheriting the socket
+    int flags = fcntl(serverSocket, F_GETFD);
+    if (flags != -1) {
+        fcntl(serverSocket, F_SETFD, flags | FD_CLOEXEC);
     }
 
     // Set socket options

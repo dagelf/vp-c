@@ -41,6 +41,11 @@ public:
     bool lastDiscoveryHadPorts = false;
     std::mutex discoveryMutex;
 
+    // Resource preview cache (instance_name -> {resource_type -> value})
+    std::map<std::string, std::map<std::string, std::string>> resourcePreviews;
+    std::map<std::string, time_t> resourcePreviewTimes;  // instance_name -> timestamp
+    std::mutex previewMutex;
+
     // Serialize to JSON
     std::string toJson() const;
 
