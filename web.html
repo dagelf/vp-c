@@ -552,6 +552,9 @@
                     <label class="flex items-center gap-2 text-sm cursor-pointer">
                         <input type="checkbox" id="filter-toplevel" onchange="renderDiscovery()"> Top-Level Only
                     </label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="show-details" onchange="renderDiscovery()"> Show Details
+                    </label>
                     <button onclick="discoverProcesses()" class="btn btn-outline btn-sm">Scan</button>
                 </div>
             </div>
@@ -769,17 +772,27 @@
                 </div>`;
             },
 
-            discoveryCard: (p) => `
+            discoveryCard: (p, showDetails) => `
                 <div class="card">
                     <div class="card-header">
                         <span class="font-semibold truncate">${p.name || 'Unknown'}${p.isTopLevel ? ' 🔝' : ''}</span>
-                        <button onclick="monitorProcess(${p.pid}, '${escape(p.command)}')" class="btn btn-primary btn-sm">Add</button>
+                        <div class="flex gap-2">
+                            <button onclick="stopProcess(${p.pid})" class="btn btn-outline btn-sm text-warning-text">Stop</button>
+                            <button onclick="monitorProcess(${p.pid}, '${escape(p.command)}')" class="btn btn-primary btn-sm">Add</button>
+                        </div>
                     </div>
                     <div class="card-body text-sm">
                         <div class="flex justify-between">
                             <span class="text-muted">PID: ${p.pid}</span>
                             <span class="text-muted">Ports: ${p.ports?.join(',') || '-'}</span>
                         </div>
+                        ${showDetails ? `
+                        <div class="flex justify-between mt-2">
+                            <span class="text-muted">Parent: ${p.parent || '-'}</span>
+                            <span class="text-muted">Memory: ${p.memory ? (p.memory / 1024).toFixed(1) + ' MB' : '-'}</span>
+                        </div>
+                        <div class="text-muted mt-2">CWD: ${p.cwd || '-'}</div>
+                        ` : ''}
                         <div class="code-block">${p.command}</div>
                     </div>
                 </div>`,
@@ -1121,6 +1134,7 @@
             const list = document.getElementById('list-discover');
             const portsOnly = document.getElementById('filter-ports').checked;
             const topLevelOnly = document.getElementById('filter-toplevel').checked;
+            const showDetails = document.getElementById('show-details').checked;
 
             let items = state.discovery.filter(p => {
                 if (portsOnly && (!p.ports || p.ports.length === 0)) return false;
@@ -1130,7 +1144,7 @@
             items = filterItems(items, 'name');
 
             if (items.length === 0) list.innerHTML = View.empty('No processes found');
-            else list.innerHTML = items.map(p => View.discoveryCard(p)).join('');
+            else list.innerHTML = items.map(p => View.discoveryCard(p, showDetails)).join('');
         }
 
         function renderTemplates() {
@@ -1166,7 +1180,15 @@
 
         // Actions
         async function apiAction(action, id) {
-            if (action === 'delete' && !confirm('Delete?')) return;
+            if (action === 'delete') {
+                // Check if instance is running
+                const instance = state.instances[id];
+                if (instance && instance.status === 'running') {
+                    if (!confirm('Instance is running. Stop it first?')) return;
+                    await fetchAPI('/api/instances', 'POST', { action: 'stop', instance_id: id });
+                }
+                if (!confirm('Delete this instance?')) return;
+            }
             await fetchAPI('/api/instances', 'POST', { action, instance_id: id });
             loadInstances();
         }
@@ -1390,6 +1412,27 @@
             };
             await fetchAPI('/api/templates', 'POST', t);
             loadTemplates();
+        }
+
+        async function stopProcess(pid) {
+            if (!confirm(`Stop process ${pid}?`)) return;
+            try {
+                const result = await fetch(config.targetHost + '/api/kill-process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(config.targetApiKey ? { 'X-VP-Key': config.targetApiKey } : {})
+                    },
+                    body: JSON.stringify({ pid })
+                });
+                if (result.ok) {
+                    discoverProcesses();
+                } else {
+                    alert('Failed to stop process');
+                }
+            } catch (e) {
+                alert('Error stopping process: ' + e.message);
+            }
         }
 
         async function monitorProcess(pid, cmd) {

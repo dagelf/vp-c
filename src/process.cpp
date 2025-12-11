@@ -32,6 +32,9 @@ std::shared_ptr<Instance> startProcess(
     inst->status = "starting";
     inst->pid = 0;
 
+    // Add instance to state immediately so it appears even if it fails
+    state->instances[instanceId] = inst;
+
     // Merge template defaults with provided vars
     std::map<std::string, std::string> finalVars = tmpl.vars;
     for (const auto& kv : vars) {
@@ -74,8 +77,9 @@ std::shared_ptr<Instance> startProcess(
             finalVars[rtype] = value;
         } catch (const std::exception& e) {
             state->releaseResources(instanceId);
-            inst->status = "error";
+            inst->status = "stopped";
             inst->error = std::string("resource allocation failed: ") + e.what();
+            state->save();
             throw;
         }
     }
