@@ -627,7 +627,7 @@
         const config = {
             sourceHost: sourceHost,
             sourceApiKey: localStorage.getItem('vp-source-api-key') || '',
-            targetHost: localStorage.getItem('vp-target-host') || 'http://127.0.0.1:8080',
+            targetHost: localStorage.getItem('vp-target-host') || window.location.origin,
             targetApiKey: localStorage.getItem('vp-target-api-key') || ''
         };
 
@@ -929,7 +929,8 @@
                 const isLaunchOperation = (
                     endpoint === '/api/instances' && method === 'POST' &&
                     body && (body.action === 'start' || body.template)
-                ) || endpoint === '/api/preview-resources';
+                ) || endpoint === '/api/preview-resources'
+                  || endpoint === '/api/execute-action';
 
                 // Choose host and key based on operation
                 const host = isLaunchOperation ? config.targetHost : config.sourceHost;
@@ -1569,37 +1570,14 @@
             if (urlPattern.test(action)) {
                 window.open(action, '_blank');
             } else {
-                // Execute command via API
+                // Execute command via API (goes to target host)
                 try {
-                    const url = config.targetHost + '/api/execute-action';
-                    const opts = {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    };
-
-                    // Add API key if configured
-                    if (config.targetApiKey) {
-                        opts.headers['X-VP-Key'] = config.targetApiKey;
-                    }
-
-                    opts.body = JSON.stringify({
+                    await fetchAPI('/api/execute-action', 'POST', {
                         instance_name: instanceName,
                         action: action
                     });
-
-                    const response = await fetch(url, opts);
-
-                    if (response.status === 401) {
-                        showSettings();
-                        throw new Error('Unauthorized - API key required');
-                    }
-
-                    if (!response.ok) {
-                        const error = await response.text();
-                        alert('Error executing action: ' + error);
-                    }
                 } catch (err) {
-                    alert('Error: ' + err.message);
+                    alert('Error executing action: ' + err.message);
                 }
             }
         }

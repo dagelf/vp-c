@@ -317,44 +317,80 @@ std::string handleRequest(const std::string& method, const std::string& path, co
     if (path == "/api/execute-action" && method == "POST") {
         try {
             json req = json::parse(body);
-            std::string instanceId = req.value("instance_id", "");
-            // Fallback to instance_name for backwards compatibility
-            if (instanceId.empty()) {
-                instanceId = req.value("instance_name", "");
-            }
-
-            if (g_state->instances.find(instanceId) == g_state->instances.end()) {
-                std::string error_body = R"({"error": "Instance not found"})";
-                response << "HTTP/1.1 404 Not Found\r\n";
-                response << "Content-Type: application/json\r\n";
-                response << "Content-Length: " << error_body.length() << "\r\n";
-                response << "\r\n";
-                response << error_body;
-                return response.str();
-            }
-
-            auto inst = g_state->instances[instanceId];
             std::string actionToExecute = req.value("action", "");
-            
+
+            // If action is directly provided, use it (no instance lookup needed)
             if (actionToExecute.empty()) {
-                actionToExecute = inst->action;
+                // Need instance lookup for launcher or default action
+                std::string instanceId = req.value("instance_id", "");
+                // Fallback to instance_name for backwards compatibility
+                if (instanceId.empty()) {
+                    instanceId = req.value("instance_name", "");
+                }
+
+                if (g_state->instances.find(instanceId) == g_state->instances.end()) {
+                    std::string error_body = R"({"error": "Instance not found"})";
+                    response << "HTTP/1.1 404 Not Found\r\n";
+                    response << "Content-Type: application/json\r\n";
+                    response << "Access-Control-Allow-Origin: *\r\n";
+                    response << "Content-Length: " << error_body.length() << "\r\n";
+                    response << "\r\n";
+                    response << error_body;
+                    return response.str();
+                }
+
+                auto inst = g_state->instances[instanceId];
+
+                // Check for launcher key
+                std::string launcherKey = req.value("launcher", "");
+                if (!launcherKey.empty()) {
+                    // Look up launcher in instance's launchers map
+                    if (inst->launchers.find(launcherKey) != inst->launchers.end()) {
+                        actionToExecute = inst->launchers[launcherKey];
+                    } else {
+                        std::string error_body = R"({"error": "Launcher not found"})";
+                        response << "HTTP/1.1 404 Not Found\r\n";
+                        response << "Content-Type: application/json\r\n";
+                        response << "Access-Control-Allow-Origin: *\r\n";
+                        response << "Content-Length: " << error_body.length() << "\r\n";
+                        response << "\r\n";
+                        response << error_body;
+                        return response.str();
+                    }
+                } else {
+                    // Fall back to instance's default action
+                    actionToExecute = inst->action;
+                }
             }
 
             if (actionToExecute.empty()) {
-                std::string error_body = R"({"error": "No action defined"})";
+                std::string error_body = R"({"error": "No action provided"})";
                 response << "HTTP/1.1 400 Bad Request\r\n";
                 response << "Content-Type: application/json\r\n";
+                response << "Access-Control-Allow-Origin: *\r\n";
                 response << "Content-Length: " << error_body.length() << "\r\n";
                 response << "\r\n";
                 response << error_body;
                 return response.str();
             }
 
-            bool success = executeAction(actionToExecute);
-            json result = {{"success", success}};
+            // Check if we should execute or just return the command
+            bool shouldExecute = req.value("execute", true);
+
+            json result;
+            if (shouldExecute) {
+                // Execute on server (for server-side actions)
+                bool success = executeAction(actionToExecute);
+                result = {{"success", success}, {"command", actionToExecute}};
+            } else {
+                // Just return the command (for client-side tools like VNC viewers)
+                result = {{"command", actionToExecute}};
+            }
+
             std::string body_str = result.dump(2);
             response << "HTTP/1.1 200 OK\r\n";
             response << "Content-Type: application/json\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
             response << "Content-Length: " << body_str.length() << "\r\n";
             response << "\r\n";
             response << body_str;
@@ -363,6 +399,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
             std::string error_body = R"({"error": "Invalid request"})";
             response << "HTTP/1.1 400 Bad Request\r\n";
             response << "Content-Type: application/json\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
             response << "Content-Length: " << error_body.length() << "\r\n";
             response << "\r\n";
             response << error_body;
@@ -537,6 +574,7 @@ std::string handleRequest(const std::string& method, const std::string& path, co
             std::string body_str = result.dump(2);
             response << "HTTP/1.1 200 OK\r\n";
             response << "Content-Type: application/json\r\n";
+            response << "Access-Control-Allow-Origin: *\r\n";
             response << "Content-Length: " << body_str.length() << "\r\n";
             response << "\r\n";
             response << body_str;
