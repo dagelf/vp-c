@@ -180,17 +180,18 @@ std::shared_ptr<ProcessInfo> readProcessInfo(int pid) {
     std::string cmdlinePath = procDir + "/cmdline";
     std::ifstream cmdlineFile(cmdlinePath);
     if (cmdlineFile.is_open()) {
-        std::string cmdline;
-        std::getline(cmdlineFile, cmdline, '\0');
+        // Read entire cmdline file (arguments are separated by null bytes)
+        std::string cmdlineData((std::istreambuf_iterator<char>(cmdlineFile)),
+                                std::istreambuf_iterator<char>());
 
         // Replace null bytes with spaces
-        for (char& c : cmdline) {
+        for (char& c : cmdlineData) {
             if (c == '\0') c = ' ';
         }
 
         // Trim trailing whitespace
-        cmdline.erase(cmdline.find_last_not_of(" \t\n\r") + 1);
-        info->cmdline = cmdline;
+        cmdlineData.erase(cmdlineData.find_last_not_of(" \t\n\r") + 1);
+        info->cmdline = cmdlineData;
     }
 
     if (!isKernelThread(pid, info->cmdline)) {

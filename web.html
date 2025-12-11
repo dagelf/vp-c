@@ -941,8 +941,7 @@
                 const isLaunchOperation = (
                     endpoint === '/api/instances' && method === 'POST' &&
                     body && (body.action === 'start' || body.template)
-                ) || endpoint === '/api/preview-resources'
-                  || endpoint === '/api/execute-action';
+                ) || endpoint === '/api/execute-action';
 
                 // Choose host and key based on operation
                 const host = isLaunchOperation ? config.targetHost : config.sourceHost;

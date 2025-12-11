@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <sstream>
 #include <stdexcept>
+#include <unistd.h>
+#include <limits.h>
 
 namespace vp {
 
@@ -124,6 +126,14 @@ std::string allocateResource(std::shared_ptr<State> state, const std::string& rt
         // Explicit value requested or non-counter resource
         if (!requestedValue.empty()) {
             value = requestedValue;
+        } else if (rtype == "workdir") {
+            // Special case: workdir defaults to current working directory
+            char cwd[PATH_MAX];
+            if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+                value = cwd;
+            } else {
+                value = ".";
+            }
         } else {
             throw std::runtime_error("resource type " + rtype + " requires explicit value");
         }
