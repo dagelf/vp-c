@@ -628,13 +628,15 @@
             sourceHost: sourceHost,
             sourceApiKey: localStorage.getItem('vp-source-api-key') || '',
             targetHost: localStorage.getItem('vp-target-host') || window.location.origin,
-            targetApiKey: localStorage.getItem('vp-target-api-key') || ''
+            targetApiKey: localStorage.getItem('vp-target-api-key') || '',
+            host: localStorage.getItem('vp-host') || window.location.hostname
         };
 
         function saveConfigToLocalStorage() {
             localStorage.setItem('vp-source-api-key', config.sourceApiKey);
             localStorage.setItem('vp-target-host', config.targetHost);
             localStorage.setItem('vp-target-api-key', config.targetApiKey);
+            localStorage.setItem('vp-host', config.host);
         }
 
         function showSettings() {
@@ -644,8 +646,11 @@
                         <div class="text-sm font-bold mb-2">Source Host (Current Server)</div>
                         <div class="text-xs text-muted mb-2">${config.sourceHost}</div>
                         <label class="block text-xs font-semibold mb-1">API Key</label>
-                        <input type="password" id="setting-source-key" class="input w-full" value="${config.sourceApiKey}" placeholder="Enter source API key">
-                        <p class="text-xs text-muted mt-1">For reading templates & instances</p>
+                        <input type="password" id="setting-source-key" class="input w-full mb-2" value="${config.sourceApiKey}" placeholder="Enter source API key">
+                        <p class="text-xs text-muted mb-2">For reading templates & instances</p>
+                        <label class="block text-xs font-semibold mb-1">\${host} Variable</label>
+                        <input type="text" id="setting-host-var" class="input w-full" value="${config.host}" placeholder="${window.location.hostname}">
+                        <p class="text-xs text-muted mt-1">Hostname/IP for \${host} in commands</p>
                     </div>
                     <div class="p-3 bg-muted rounded">
                         <label class="block text-sm font-bold mb-2">Target Host (For Launching)</label>
@@ -670,9 +675,16 @@
             config.sourceApiKey = document.getElementById('setting-source-key').value.trim();
             const targetHostInput = document.getElementById('setting-target-host');
             const targetKeyInput = document.getElementById('setting-target-key');
+            const hostVarInput = document.getElementById('setting-host-var');
 
             config.targetHost = targetHostInput ? targetHostInput.value.trim() : config.targetHost;
             config.targetApiKey = targetKeyInput ? targetKeyInput.value.trim() : config.targetApiKey;
+            config.host = hostVarInput ? hostVarInput.value.trim() : config.host;
+
+            // If host variable is empty, default to source hostname
+            if (!config.host) {
+                config.host = window.location.hostname;
+            }
 
             // If source and target are same host, use same key
             if (config.sourceHost === config.targetHost) {
@@ -1373,6 +1385,11 @@
                 });
             }
 
+            // Inject special ${host} variable
+            if (!vars.host) {
+                vars.host = config.host;
+            }
+
             // Get the final edited command
             const finalCommand = document.getElementById('launch-command').value;
 
@@ -1463,6 +1480,30 @@
             fetchAPI('/api/resource-types', 'POST', { name, check, counter, start, end }).then(loadResourceTypes);
         }
 
+        // Helper to interpolate variables in commands (including ${host} and resources)
+        function interpolateCommand(cmd, instance) {
+            if (!cmd) return cmd;
+            let result = cmd;
+
+            // Replace special ${host} variable
+            result = result.replace(/\$\{host\}/g, config.host);
+
+            // Replace resource variables from instance
+            if (instance && instance.resources) {
+                Object.entries(instance.resources).forEach(([k, v]) => {
+                    result = result.replace(new RegExp('\\$\\{' + k + '\\}', 'g'), v);
+                });
+            }
+
+            return result;
+        }
+
+        // Legacy helper - kept for compatibility
+        function interpolateHost(cmd) {
+            if (!cmd) return cmd;
+            return cmd.replace(/\$\{host\}/g, config.host);
+        }
+
         // Launchers
         function showLaunchers(instanceId, event) {
             const i = state.instances[instanceId];
@@ -1480,6 +1521,8 @@
                     if (!launchers[key]) {
                         // Interpolate
                         let finalCmd = cmd;
+                        // Replace special ${host} variable
+                        finalCmd = finalCmd.replace(/\$\{host\}/g, config.host);
                         // Replace vars from template defaults
                         if (tmpl.vars) {
                             Object.entries(tmpl.vars).forEach(([k, v]) => {
@@ -1506,9 +1549,9 @@
 
             if (!event.shiftKey && totalOptions === 1) {
                 if (hasAction) {
-                    executeAction(i.name, i.action);
+                    executeAction(i.name, interpolateCommand(i.action, i));
                 } else if (launcherKeys.length > 0) {
-                    executeAction(i.name, launchers[launcherKeys[0]]);
+                    executeAction(i.name, interpolateCommand(launchers[launcherKeys[0]], i));
                 } else if (tmplKeys.length > 0) {
                     executeAction(i.name, tmplLaunchers[tmplKeys[0]]);
                 }
@@ -1523,9 +1566,10 @@
             let html = '<div class="flex flex-col gap-4">';
 
             if (hasAction) {
+                const interpolatedAction = interpolateCommand(i.action, i);
                 html += `<div>
                     <div class="text-xs font-bold text-muted uppercase mb-2">Default Action</div>
-                    <button onclick="executeAction('${i.name}', '${escapeQuotes(i.action)}'); closeModal()" class="btn btn-primary w-full justify-between">
+                    <button onclick="executeAction('${i.name}', '${escapeQuotes(interpolatedAction)}'); closeModal()" class="btn btn-primary w-full justify-between">
                         <span>Default Action</span>
                         <span class="text-xs opacity-75">↗</span>
                     </button>
@@ -1536,12 +1580,14 @@
                 html += `<div>
                     <div class="text-xs font-bold text-muted uppercase mb-2">Instance Launchers</div>
                     <div class="flex flex-col gap-2">
-                        ${Object.entries(launchers).map(([label, cmd]) => `
-                        <button onclick="executeAction('${i.name}', '${escapeQuotes(cmd)}'); closeModal()" class="btn btn-outline flex-col items-start h-auto py-2 gap-1 w-full">
+                        ${Object.entries(launchers).map(([label, cmd]) => {
+                            const interpolatedCmd = interpolateCommand(cmd, i);
+                            return `
+                        <button onclick="executeAction('${i.name}', '${escapeQuotes(interpolatedCmd)}'); closeModal()" class="btn btn-outline flex-col items-start h-auto py-2 gap-1 w-full">
                             <span class="font-bold">${label}</span>
-                            <span class="text-xs text-muted font-mono text-left break-all whitespace-normal opacity-75">${cmd}</span>
+                            <span class="text-xs text-muted font-mono text-left break-all whitespace-normal opacity-75">${interpolatedCmd}</span>
                         </button>
-                        `).join('')}
+                        `;}).join('')}
                     </div>
                 </div>`;
             }

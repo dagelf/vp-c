@@ -167,6 +167,7 @@ std::shared_ptr<Instance> startProcess(
     }
 
     // Phase 3: Start process
+    std::cout << "Starting instance '" << instanceId << "': " << cmd << std::endl;
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -276,6 +277,7 @@ bool restartProcess(std::shared_ptr<State> state, std::shared_ptr<Instance> inst
     }
 
     // Start the process
+    std::cout << "Restarting instance '" << inst->id << "': " << inst->command << std::endl;
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -739,6 +741,7 @@ bool executeAction(const std::string& action) {
         return false;
     }
 
+    std::cout << "Executing action: " << action << std::endl;
     std::string cmd = action + " &";
     return system(cmd.c_str()) == 0;
 }
