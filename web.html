@@ -624,10 +624,20 @@
         // Determine source host (where this page was loaded from)
         const sourceHost = window.location.origin;
 
+        // Migration: if targetHost is localhost/127.0.0.1 but sourceHost isn't, reset it
+        let storedTargetHost = localStorage.getItem('vp-target-host');
+        if (storedTargetHost &&
+            (storedTargetHost.includes('localhost') || storedTargetHost.includes('127.0.0.1')) &&
+            !sourceHost.includes('localhost') && !sourceHost.includes('127.0.0.1')) {
+            console.log('[VP] Migrating targetHost from localhost to sourceHost');
+            storedTargetHost = null;
+            localStorage.removeItem('vp-target-host');
+        }
+
         const config = {
             sourceHost: sourceHost,
             sourceApiKey: localStorage.getItem('vp-source-api-key') || '',
-            targetHost: localStorage.getItem('vp-target-host') || window.location.origin,
+            targetHost: storedTargetHost || window.location.origin,
             targetApiKey: localStorage.getItem('vp-target-api-key') || '',
             host: localStorage.getItem('vp-host') || window.location.hostname
         };
@@ -653,11 +663,11 @@
                         <p class="text-xs text-muted mt-1">Hostname/IP for \${host} in commands</p>
                     </div>
                     <div class="p-3 bg-muted rounded">
-                        <label class="block text-sm font-bold mb-2">Target Host (For Launching)</label>
+                        <label class="block text-sm font-bold mb-2">Target Host (For Actions)</label>
                         <input type="text" id="setting-target-host" class="input w-full mb-2" value="${config.targetHost}" placeholder="http://127.0.0.1:8080">
                         <label class="block text-xs font-semibold mb-1">API Key</label>
                         <input type="password" id="setting-target-key" class="input w-full" value="${config.targetApiKey}" placeholder="Enter target API key">
-                        <p class="text-xs text-muted mt-1">Where instances will be launched</p>
+                        <p class="text-xs text-muted mt-1">Where launchers/actions will execute</p>
                     </div>
                 </div>
             `;
@@ -934,18 +944,16 @@
         }
 
         // API - with dual-host support
-        // Launch operations go to target host, everything else goes to source host
+        // Action executions go to target host, everything else (including launches) goes to source host
         async function fetchAPI(endpoint, method = 'GET', body = null) {
             try {
-                // Determine if this is a launch operation
-                const isLaunchOperation = (
-                    endpoint === '/api/instances' && method === 'POST' &&
-                    body && (body.action === 'start' || body.template)
-                ) || endpoint === '/api/execute-action';
+                // Determine if this is an action execution (goes to target)
+                // Everything else including launches goes to source
+                const isActionExecution = endpoint === '/api/execute-action';
 
                 // Choose host and key based on operation
-                const host = isLaunchOperation ? config.targetHost : config.sourceHost;
-                const apiKey = isLaunchOperation ? config.targetApiKey : config.sourceApiKey;
+                const host = isActionExecution ? config.targetHost : config.sourceHost;
+                const apiKey = isActionExecution ? config.targetApiKey : config.sourceApiKey;
 
                 const url = host + endpoint;
                 const opts = {
@@ -1275,7 +1283,12 @@
                 html += '<div><div class="text-xs font-bold text-muted uppercase mb-2">Required Resources</div>';
                 template.resources.forEach(res => {
                     const previewedValue = previewedResources[res] || '';
-                    const placeholder = previewedValue ? `Allocated: ${previewedValue}` : 'Auto-allocate';
+                    let placeholder = previewedValue ? `Allocated: ${previewedValue}` : 'Auto-allocate';
+
+                    // Special placeholder for workdir
+                    if (res === 'workdir' && !previewedValue) {
+                        placeholder = 'Defaults to current directory (${pwd})';
+                    }
 
                     html += `
                         <div class="mb-3">
