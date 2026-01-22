@@ -1,0 +1,57 @@
+Start testing: Dec 10 01:04 +08
+----------------------------------------------------------
+1/1 Testing: vp_test
+1/1 Test: vp_test
+Command: "/home/coenraad/vp-c/vp_test"
+Directory: /home/coenraad/vp-c
+"vp_test" start time: Dec 10 01:04 +08
+Output:
+----------------------------------------------------------
+Running 17 tests...
+
+[ RUN      ] EmptyStateNoError
+[       OK ] EmptyStateNoError
+[ RUN      ] ProcessRunningCheck
+[       OK ] ProcessRunningCheck
+[ RUN      ] ReadProcessInfo
+[       OK ] ReadProcessInfo
+[ RUN      ] StoppedInstanceMatchesRunningProcess
+[       OK ] StoppedInstanceMatchesRunningProcess
+[ RUN      ] ResourceAllocation_TCPPort
+[       OK ] ResourceAllocation_TCPPort
+[ RUN      ] ResourceAllocation_ExplicitValue
+[       OK ] ResourceAllocation_ExplicitValue
+[ RUN      ] StartAndStopProcess
+[       OK ] StartAndStopProcess
+[ RUN      ] AddTemplateFromStdinString
+[       OK ] AddTemplateFromStdinString
+[ RUN      ] DeleteTemplate
+[       OK ] DeleteTemplate
+[ RUN      ] ExtractProcessName
+[       OK ] ExtractProcessName
+[ RUN      ] BuildPortToProcessMap
+[       OK ] BuildPortToProcessMap
+[ RUN      ] ResourceCheck_Available
+[       OK ] ResourceCheck_Available
+[ RUN      ] StateLoadAndSave
+[       OK ] StateLoadAndSave
+[ RUN      ] GetParentChain
+[       OK ] GetParentChain
+[ RUN      ] DiscoverProcess
+[       OK ] DiscoverProcess
+[ RUN      ] MonitorProcess
+[       OK ] MonitorProcess
+[ RUN      ] DefaultResourceTypes
+[       OK ] DefaultResourceTypes
+
+Tests passed: 17
+Tests failed: 0
+<end of output>
+Test time =   4.33 sec
+----------------------------------------------------------
+Test Passed.
+"vp_test" end time: Dec 10 01:04 +08
+"vp_test" time elapsed: 00:00:04
+----------------------------------------------------------
+
+End testing: Dec 10 01:04 +08

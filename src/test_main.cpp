@@ -149,7 +149,8 @@ TEST(StartAndStopProcess) {
         // Start a process
         std::map<std::string, std::string> vars;
         std::string instName = std::string("test-instance-") + std::to_string(getpid());
-        state->releaseResources(instName);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->releaseResources(instName);
         state->instances.erase(instName);
         state->save();
 
@@ -166,7 +167,8 @@ TEST(StartAndStopProcess) {
         assertEqual(0, inst->pid, "Instance PID should be 0");
 
         state->instances.erase(instName);
-        state->releaseResources(instName);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->releaseResources(instName);
         state->save();
 
     } catch (const std::exception& e) {

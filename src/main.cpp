@@ -181,7 +181,8 @@ void handleStop(const std::vector<std::string>& args) {
         exit(1);
     }
 
-    state->releaseResources(name);
+    // COMMENTED OUT: Resource tracking disabled
+    // state->releaseResources(name);
     state->save();
 
     std::cout << "Stopped " << name << "\n";
@@ -209,7 +210,8 @@ void handleRestart(const std::vector<std::string>& args) {
             std::cerr << "Error stopping process\n";
             exit(1);
         }
-        state->releaseResources(name);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->releaseResources(name);
         state->save();
     }
 
@@ -242,7 +244,8 @@ void handleDelete(const std::vector<std::string>& args) {
         stopProcess(state, it->second);
     }
 
-    state->releaseResources(name);
+    // COMMENTED OUT: Resource tracking disabled
+    // state->releaseResources(name);
     state->instances.erase(name);
     state->save();
 

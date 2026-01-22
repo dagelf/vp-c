@@ -322,29 +322,31 @@ bool State::deleteTemplate(const std::string& id) {
     return true;
 }
 
-void State::claimResource(const std::string& rtype, const std::string& value, const std::string& owner) {
-    std::lock_guard<std::mutex> lock(mutex_);
+// COMMENTED OUT: Resource tracking disabled - just scan for free resources on demand
+// void State::claimResource(const std::string& rtype, const std::string& value, const std::string& owner) {
+//     std::lock_guard<std::mutex> lock(mutex_);
+//
+//     std::string key = rtype + ":" + value;
+//     auto res = std::make_shared<Resource>();
+//     res->type = rtype;
+//     res->value = value;
+//     res->owner = owner;
+//     resources[key] = res;
+// }
 
-    std::string key = rtype + ":" + value;
-    auto res = std::make_shared<Resource>();
-    res->type = rtype;
-    res->value = value;
-    res->owner = owner;
-    resources[key] = res;
-}
-
-void State::releaseResources(const std::string& owner) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto it = resources.begin();
-    while (it != resources.end()) {
-        if (it->second->owner == owner) {
-            it = resources.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
+// COMMENTED OUT: Resource tracking disabled - just scan for free resources on demand
+// void State::releaseResources(const std::string& owner) {
+//     std::lock_guard<std::mutex> lock(mutex_);
+//
+//     auto it = resources.begin();
+//     while (it != resources.end()) {
+//         if (it->second->owner == owner) {
+//             it = resources.erase(it);
+//         } else {
+//             ++it;
+//         }
+//     }
+// }
 
 void State::loadDefaultTemplates() {
     auto postgres = std::make_shared<Template>();

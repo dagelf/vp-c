@@ -19,9 +19,9 @@ public:
     // Save state to ~/.vibeprocess/state.json
     bool save();
 
-    // Resource management
-    void claimResource(const std::string& rtype, const std::string& value, const std::string& owner);
-    void releaseResources(const std::string& owner);
+    // COMMENTED OUT: Resource tracking disabled - just scan for free resources on demand
+    // void claimResource(const std::string& rtype, const std::string& value, const std::string& owner);
+    // void releaseResources(const std::string& owner);
 
     // Watch config file for changes and reload automatically
     bool watchConfig();

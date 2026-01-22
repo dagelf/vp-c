@@ -73,10 +73,12 @@ std::shared_ptr<Instance> startProcess(
 
             std::string value = allocateResource(state, rtype, reqValue);
             inst->resources[rtype] = value;
-            state->claimResource(rtype, value, instanceId);
+            // COMMENTED OUT: Resource tracking disabled
+            // state->claimResource(rtype, value, instanceId);
             finalVars[rtype] = value;
         } catch (const std::exception& e) {
-            state->releaseResources(instanceId);
+            // COMMENTED OUT: Resource tracking disabled
+            // state->releaseResources(instanceId);
             inst->status = "stopped";
             inst->error = std::string("resource allocation failed: ") + e.what();
             state->save();
@@ -107,9 +109,11 @@ std::shared_ptr<Instance> startProcess(
             std::string value = allocateResource(state, counter, "");
             cmd = std::regex_replace(cmd, std::regex("%" + counter), value, std::regex_constants::format_first_only);
             inst->resources[counter] = value;
-            state->claimResource(counter, value, instanceId);
+            // COMMENTED OUT: Resource tracking disabled
+            // state->claimResource(counter, value, instanceId);
         } catch (const std::exception& e) {
-            state->releaseResources(instanceId);
+            // COMMENTED OUT: Resource tracking disabled
+            // state->releaseResources(instanceId);
             inst->status = "error";
             inst->error = std::string("counter allocation failed: ") + e.what();
             throw;
@@ -171,7 +175,8 @@ std::shared_ptr<Instance> startProcess(
     pid_t pid = fork();
 
     if (pid == -1) {
-        state->releaseResources(instanceId);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->releaseResources(instanceId);
         inst->status = "error";
         inst->error = "failed to fork process";
         throw std::runtime_error("failed to fork process");
@@ -273,7 +278,8 @@ bool restartProcess(std::shared_ptr<State> state, std::shared_ptr<Instance> inst
             return false;
         }
 
-        state->claimResource(kv.first, kv.second, inst->id);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->claimResource(kv.first, kv.second, inst->id);
     }
 
     // Start the process
@@ -281,7 +287,8 @@ bool restartProcess(std::shared_ptr<State> state, std::shared_ptr<Instance> inst
     pid_t pid = fork();
 
     if (pid == -1) {
-        state->releaseResources(inst->id);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->releaseResources(inst->id);
         inst->status = "error";
         inst->error = "failed to fork process";
         return false;
@@ -353,7 +360,8 @@ std::shared_ptr<Instance> monitorProcess(std::shared_ptr<State> state, int pid, 
         std::string key = (i == 0) ? "tcpport" : "tcpport" + std::to_string(i);
         std::string value = std::to_string(procInfo->ports[i]);
         inst->resources[key] = value;
-        state->claimResource(key, value, instanceId);
+        // COMMENTED OUT: Resource tracking disabled
+        // state->claimResource(key, value, instanceId);
     }
 
     if (!procInfo->cwd.empty()) {

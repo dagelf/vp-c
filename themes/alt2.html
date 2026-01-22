@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibecoding Process Manager</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #09090b;
+            --card: #ffffff;
+            --card-fg: #09090b;
+            --primary: #18181b;
+            --primary-fg: #fafafa;
+            --muted: #f4f4f5;
+            --muted-fg: #71717a;
+            --border: #e4e4e7;
+            --input: #e4e4e7;
+            --ring: #18181b;
+            --radius: 0.5rem;
+
+            --success-bg: #dcfce7;
+            --success-text: #15803d;
+            --warning-bg: #fef9c3;
+            --warning-text: #a16207;
+            --error-bg: #fee2e2;
+            --error-text: #b91c1c;
+            --neutral-bg: #f4f4f5;
+            --neutral-text: #52525b;
+
+            --editor-bg: #fafafa;
+        }
+
+        .dark {
+            --bg: #09090b;
+            --fg: #fafafa;
+            --card: #18181b;
+            --card-fg: #fafafa;
+            --primary: #fafafa;
+            --primary-fg: #18181b;
+            --muted: #27272a;
+            --muted-fg: #a1a1aa;
+            --border: #27272a;
+            --input: #27272a;
+            --ring: #d4d4d8;
+
+            --success-bg: #052e16;
+            --success-text: #4ade80;
+            --warning-bg: #422006;
+            --warning-text: #facc15;
+            --error-bg: #450a0a;
+            --error-text: #f87171;
+            --neutral-bg: #27272a;
+            --neutral-text: #a1a1aa;
+
+            --editor-bg: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            border-width: 0;
+            border-style: solid;
+            border-color: var(--border);
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Layout */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .flex-1 {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .gap-4 {
+            gap: 1rem;
+        }
+
+        .p-4 {
+            padding: 1rem;
+        }
+
+        .p-6 {
+            padding: 1.5rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+
+        .mr-2 {
+            margin-right: 0.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .block {
+            display: block;
+        }
+
+        .h-full {
+            height: 100%;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Typography */
+        h2,
+        h3,
+        p {
+            margin: 0;
+        }
+
+        .text-xl {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .text-lg {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .text-xs {
+            font-size: 0.75rem;
+        }
+
+        .font-mono {
+            font-family: monospace;
+        }
+
+        .font-semibold {
+            font-weight: 600;
+        }
+
+        .text-muted {
+            color: var(--muted-fg);
+        }
+
+        /* Components */
+        header {
+            height: 3.5rem;
+            border-bottom-width: 1px;
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 2.25rem;
+            padding: 0 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            background: transparent;
+            color: var(--fg);
+            border: 1px solid transparent;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-fg);
+        }
+
+        .btn-outline {
+            border-color: var(--input);
+        }
+
+        .btn-icon {
+            width: 2.25rem;
+            padding: 0;
+        }
+
+        .btn-sm {
+            height: 2rem;
+            font-size: 0.75rem;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body {
+            padding: 1.25rem 1rem;
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .badge-warning {
+            background: var(--warning-bg);
+            color: var(--warning-text);
+        }
+
+        .badge-error {
+            background: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        .badge-neutral {
+            background: var(--neutral-bg);
+            color: var(--neutral-text);
+        }
+
+        .badge-stale {
+            background: var(--neutral-bg);
+            color: var(--muted-fg);
+        }
+
+        .input {
+            height: 2.25rem;
+            padding: 0 0.75rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--input);
+            background: var(--bg);
+            color: var(--fg);
+            font-size: 0.875rem;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--muted);
+            padding: 0.25rem;
+            border-radius: var(--radius);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.375rem;
+            border-radius: calc(var(--radius) - 2px);
+            text-align: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--muted-fg);
+            border: none;
+            background: transparent;
+        }
+
+        .tab-btn.active {
+            background: var(--bg);
+            color: var(--fg);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block {
+            background: var(--muted);
+            padding: 0.5rem;
+            border-radius: var(--radius);
+            font-family: monospace;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .status-dot.live {
+            background: var(--success-text);
+            box-shadow: 0 0 4px var(--success-text);
+        }
+
+        .status-dot.stale {
+            background: var(--warning-text);
+        }
+
+        #config-editor {
+            background-color: var(--editor-bg);
+            color: var(--fg);
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            line-height: 1.5;
+        }
+
+        #filter-badge {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 50;
+            background: var(--primary);
+            color: var(--primary-fg);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--muted-fg);
+            opacity: 0.5;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="filter-badge">Filter: <span id="filter-text"></span></div>
+
+    <header>
+        <div class="flex items-center gap-2 flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19h8"></path>
+                <path d="m4 17 6-6-6-6"></path>
+            </svg>
+            <span class="text-lg">VP Manager</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="btn btn-outline btn-icon" title="Toggle Theme">
+                <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round"></svg>
+            </button>
+            <button onclick="showStartForm()" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5v14"></path>
+                </svg>
+                New Instance
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col p-6 overflow-hidden">
+        <div class="mb-6 flex justify-center">
+            <div class="tab-nav" style="width: 100%; max-width: 700px;">
+                <button onclick="setTab('instances')" class="tab-btn active" data-tab="instances">Instances</button>
+                <button onclick="setTab('discover')" class="tab-btn" data-tab="discover">Processes</button>
+                <button onclick="setTab('templates')" class="tab-btn" data-tab="templates">Templates</button>
+                <button onclick="setTab('resources')" class="tab-btn" data-tab="resources">Resources</button>
+                <button onclick="setTab('types')" class="tab-btn" data-tab="types">Types</button>
+                <button onclick="setTab('config')" class="tab-btn" data-tab="config">Config</button>
+            </div>
+        </div>
+
+        <!-- Instances -->
+        <div id="tab-instances" class="tab-pane flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl">Managed Instances</h2>
+                    <div class="flex items-center text-sm text-muted ml-4">
+                        <span id="status-instances" class="status-dot stale"></span>
+                        <span id="text-instances">Loading...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="auto-refresh" checked> Auto
+                    </label>
+                    <button onclick="loadInstances()" class="btn btn-outline btn-sm">Refresh</button>
+                </div>
+            </div>
+            <div id="list-instances" class="grid overflow-auto p-1"></div>
+        </div>
+
+        <!-- Discovery -->
+        <div id="tab-discover" class="tab-pane hidden flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl">System Processes</h2>
+                    <div class="flex items-center text-sm text-muted ml-4">
+                        <span id="status-discover" class="status-dot stale"></span>
+                        <span id="text-discover">Loading...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-ports" onchange="renderDiscovery()"> Ports Only
+                    </label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-toplevel" onchange="renderDiscovery()"> Top-Level Only
+                    </label>
+                    <button onclick="discoverProcesses()" class="btn btn-outline btn-sm">Scan</button>
+                </div>
+            </div>
+            <div id="list-discover" class="grid overflow-auto p-1"></div>
+        </div>
+
+        <!-- Templates -->
+        <div id="tab-templates" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Templates</h2>
+                <button onclick="addTemplate()" class="btn btn-outline btn-sm">Add JSON</button>
+            </div>
+            <div id="list-templates" class="grid"></div>
+        </div>
+
+        <!-- Resources -->
+        <div id="tab-resources" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Resources</h2>
+                <button onclick="addResourceType()" class="btn btn-outline btn-sm">Add Type</button>
+            </div>
+            <div id="list-resources" class="grid"></div>
+        </div>
+
+        <!-- Resource Types -->
+        <div id="tab-types" class="tab-pane hidden flex-1 overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Resource Types</h2>
+                <button onclick="addResourceType()" class="btn btn-outline btn-sm">Add Type</button>
+            </div>
+            <div id="list-types" class="grid"></div>
+        </div>
+
+        <!-- Config -->
+        <div id="tab-config" class="tab-pane hidden flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl">Configuration</h2>
+                <div class="flex gap-2">
+                    <button onclick="loadConfig()" class="btn btn-outline btn-sm">Reload</button>
+                    <button onclick="saveConfig()" class="btn btn-primary btn-sm">Save</button>
+                </div>
+            </div>
+            <div class="card flex-1 flex flex-col">
+                <textarea id="config-editor"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none border-0 focus:outline-none"></textarea>
+            </div>
+            <div id="config-msg" class="mt-2 text-sm hidden"></div>
+        </div>
+    </main>
+
+    <script>
+        // --- View (HTML Generation) ---
+        const View = {
+            instanceCard: (i, isStale) => {
+                const running = i.status === 'running';
+                let badge = 'badge-neutral';
+                if (running) badge = isStale ? 'badge-stale' : 'badge-success';
+                else if (i.status === 'error') badge = 'badge-error';
+
+                return `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold">${i.name}</span>
+                            <span class="badge ${badge}">${i.status}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            ${running ?
+                        `<button onclick="apiAction('stop', '${i.name}')" class="btn btn-outline btn-icon" title="Stop">■</button>` :
+                        `<button onclick="apiAction('restart', '${i.name}')" class="btn btn-outline btn-icon" title="Start">▶</button>`
+                    }
+                            <button onclick="addAsTemplate('${i.name}')" class="btn btn-outline btn-icon" title="Save as Template">+</button>
+                            <button onclick="apiAction('delete', '${i.name}')" class="btn btn-outline btn-icon text-error-text" title="Delete">✕</button>
+                            ${i.action ? `<button onclick="window.open('${i.action}')" class="btn btn-primary btn-icon">↗</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="card-body text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted">PID: ${i.pid || '-'}</span>
+                            <span class="text-muted">CPU: ${formatTime(i.cputime)}</span>
+                        </div>
+                        <div class="code-block">${i.command}</div>
+                        <div class="flex flex-wrap gap-1">
+                            ${Object.entries(i.resources || {}).map(([k, v]) => `<span class="badge badge-neutral">${k}=${v}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+            },
+
+            discoveryCard: (p) => `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="font-semibold truncate">${p.name || 'Unknown'}${p.isTopLevel ? ' 🔝' : ''}</span>
+                        <button onclick="monitorProcess(${p.pid}, '${escape(p.command)}')" class="btn btn-primary btn-sm">Add</button>
+                    </div>
+                    <div class="card-body text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted">PID: ${p.pid}</span>
+                            <span class="text-muted">Ports: ${p.ports?.join(',') || '-'}</span>
+                        </div>
+                        <div class="code-block">${p.command}</div>
+                    </div>
+                </div>`,
+
+            templateCard: (t) => `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="font-semibold">${t.label || t.id}</span>
+                        <button onclick="startTemplate('${t.id}')" class="btn btn-primary btn-sm">Launch</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="code-block">${t.command}</div>
+                    </div>
+                </div>`,
+
+            resourceCard: (type, list) => `
+                <div class="card">
+                    <div class="card-header"><span class="font-semibold">${type}</span></div>
+                    <div class="card-body flex flex-col gap-2">
+                        ${list.map(r => `<div class="flex justify-between text-sm border p-2 rounded"><span>${r.value}</span><span class="text-muted">→ ${r.owner}</span></div>`).join('')}
+                    </div>
+                </div>`,
+
+            typeCard: (t) => `
+                <div class="card">
+                    <div class="card-header"><span class="font-semibold">${t.name}</span></div>
+                    <div class="card-body">
+                        <div class="mb-2"><span class="text-muted">Check:</span> <span class="code-block" style="display:inline;padding:0.2rem">${t.check || '-'}</span></div>
+                        <div class="mb-2"><span class="text-muted">Counter:</span> ${t.counter ? 'Yes' : 'No'}</div>
+                        ${t.counter ? `<div><span class="text-muted">Range:</span> ${t.start} - ${t.end}</div>` : ''}
+                    </div>
+                </div>`,
+
+            empty: (msg) => `<div class="p-4 text-center text-muted">${msg}</div>`
+        };
+
+        // --- State ---
+        const state = {
+            instances: {},
+            templates: {},
+            resources: {},
+            types: {},
+            discovery: [],
+            lastUpdate: { instances: 0, discover: 0 },
+            activeTab: 'instances',
+            filter: ''
+        };
+
+        // --- Controller / Logic ---
+
+        // Universal Filtering
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+            if (e.key === 'Escape') {
+                state.filter = '';
+            } else if (e.key === 'Backspace') {
+                state.filter = state.filter.slice(0, -1);
+            } else if (e.key.length === 1) {
+                state.filter += e.key;
+            } else {
+                return;
+            }
+
+            updateFilterUI();
+            rerenderCurrentTab();
+        });
+
+        function updateFilterUI() {
+            const badge = document.getElementById('filter-badge');
+            const text = document.getElementById('filter-text');
+            if (state.filter) {
+                badge.style.display = 'block';
+                text.textContent = state.filter;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function rerenderCurrentTab() {
+            if (state.activeTab === 'instances') renderInstances();
+            else if (state.activeTab === 'discover') renderDiscovery();
+            else if (state.activeTab === 'templates') renderTemplates();
+            else if (state.activeTab === 'resources') renderResources();
+            else if (state.activeTab === 'types') renderTypes();
+        }
+
+        function filterItems(items, key = 'name') {
+            if (!state.filter) return items;
+            const q = state.filter.toLowerCase();
+            return items.filter(i => (i[key] || '').toLowerCase().includes(q));
+        }
+
+        // Theme
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('theme-icon');
+            if (isDark) icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+            else icon.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/>';
+        }
+        if (localStorage.theme === 'dark' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+        updateThemeIcon();
+
+        // Tabs
+        function setTab(tab) {
+            state.activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+
+            // Clear filter on tab change? User said "universally on all pages", so maybe keep it?
+            // "universally on all pages with cards" implies the filter persists.
+            rerenderCurrentTab();
+
+            if (tab === 'instances') loadInstances();
+            else if (tab === 'discover') discoverProcesses();
+            else if (tab === 'templates') loadTemplates();
+            else if (tab === 'resources') loadResources();
+            else if (tab === 'types') loadResourceTypes();
+            else if (tab === 'config') loadConfig();
+        }
+
+        // API
+        async function fetchAPI(endpoint, method = 'GET', body = null) {
+            try {
+                const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(endpoint, opts);
+                if (!res.ok) throw new Error(await res.text());
+                return await res.json();
+            } catch (e) {
+                console.error(e);
+                return null;
+            }
+        }
+
+        async function loadInstances() {
+            const data = await fetchAPI('/api/instances');
+            if (data) {
+                state.instances = data;
+                state.lastUpdate.instances = Date.now();
+                renderInstances();
+            }
+        }
+
+        async function discoverProcesses() {
+            const data = await fetchAPI('/api/discover');
+            if (data) {
+                // Process Tree Logic
+                const shells = ['bash', 'zsh', 'sh', 'fish', 'dash', 'ksh', 'tcsh', 'csh'];
+                const processMap = {};
+                const childrenMap = {};
+
+                data.forEach(p => {
+                    processMap[p.pid] = p;
+                    p.isTopLevel = false;
+                    p.allPorts = new Set(p.ports || []);
+                    if (!childrenMap[p.ppid]) childrenMap[p.ppid] = [];
+                    childrenMap[p.ppid].push(p);
+                });
+
+                data.forEach(p => {
+                    const parent = processMap[p.ppid];
+                    if (parent && shells.includes(parent.name)) {
+                        p.isTopLevel = true;
+                        // Aggregate ports
+                        const agg = (proc) => {
+                            (childrenMap[proc.pid] || []).forEach(child => {
+                                (child.ports || []).forEach(port => p.allPorts.add(port));
+                                agg(child);
+                            });
+                        };
+                        agg(p);
+                        p.ports = Array.from(p.allPorts);
+                    }
+                });
+
+                state.discovery = data;
+                state.lastUpdate.discover = Date.now();
+                renderDiscovery();
+            }
+        }
+
+        async function loadTemplates() {
+            state.templates = await fetchAPI('/api/templates') || {};
+            renderTemplates();
+        }
+
+        async function loadResources() {
+            state.resources = await fetchAPI('/api/resources') || {};
+            renderResources();
+        }
+
+        async function loadResourceTypes() {
+            state.types = await fetchAPI('/api/resource-types') || {};
+            renderTypes();
+        }
+
+        async function loadConfig() {
+            const cfg = await fetchAPI('/api/config');
+            document.getElementById('config-editor').value = JSON.stringify(cfg, null, 2);
+        }
+
+        async function saveConfig() {
+            try {
+                const json = document.getElementById('config-editor').value;
+                JSON.parse(json); // Validate
+                await fetchAPI('/api/config', 'POST', JSON.parse(json));
+                showMsg('Saved!', 'success');
+            } catch (e) {
+                showMsg(e.message, 'error');
+            }
+        }
+
+        function showMsg(msg, type) {
+            const el = document.getElementById('config-msg');
+            el.textContent = msg;
+            el.className = `mt-2 text-sm block ${type === 'error' ? 'text-error-text' : 'text-success-text'}`;
+            setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        // Rendering Calls
+        function renderInstances() {
+            const list = document.getElementById('list-instances');
+            const age = Date.now() - state.lastUpdate.instances;
+            const isStale = age > 6000;
+
+            let items = Object.values(state.instances);
+            items = filterItems(items, 'name');
+
+            if (items.length === 0) list.innerHTML = View.empty('No instances');
+            else list.innerHTML = items.map(i => View.instanceCard(i, isStale)).join('');
+        }
+
+        function renderDiscovery() {
+            const list = document.getElementById('list-discover');
+            const portsOnly = document.getElementById('filter-ports').checked;
+            const topLevelOnly = document.getElementById('filter-toplevel').checked;
+
+            let items = state.discovery.filter(p => {
+                if (portsOnly && (!p.ports || p.ports.length === 0)) return false;
+                if (topLevelOnly && !p.isTopLevel) return false;
+                return true;
+            });
+            items = filterItems(items, 'name');
+
+            if (items.length === 0) list.innerHTML = View.empty('No processes found');
+            else list.innerHTML = items.map(p => View.discoveryCard(p)).join('');
+        }
+
+        function renderTemplates() {
+            let items = Object.values(state.templates);
+            items = filterItems(items, 'id'); // Filter by ID/Label
+            const list = document.getElementById('list-templates');
+            if (items.length === 0) list.innerHTML = View.empty('No templates');
+            else list.innerHTML = items.map(t => View.templateCard(t)).join('');
+        }
+
+        function renderResources() {
+            // Resources are grouped by type, filtering is tricky. 
+            // We'll filter the inner items.
+            const list = document.getElementById('list-resources');
+            const q = state.filter.toLowerCase();
+
+            const html = Object.entries(state.resources).map(([type, l]) => {
+                const filteredList = state.filter ? l.filter(r => r.value.toLowerCase().includes(q)) : l;
+                if (filteredList.length === 0) return '';
+                return View.resourceCard(type, filteredList);
+            }).join('');
+
+            list.innerHTML = html || View.empty('No resources');
+        }
+
+        function renderTypes() {
+            let items = Object.values(state.types);
+            items = filterItems(items, 'name');
+            const list = document.getElementById('list-types');
+            if (items.length === 0) list.innerHTML = View.empty('No types');
+            else list.innerHTML = items.map(t => View.typeCard(t)).join('');
+        }
+
+        // Actions
+        async function apiAction(action, id) {
+            if (action === 'delete' && !confirm('Delete?')) return;
+            await fetchAPI('/api/instances', 'POST', { action, instance_id: id });
+            loadInstances();
+        }
+
+        async function startTemplate(id) {
+            const t = state.templates[id];
+            const name = prompt('Name:');
+            if (!name) return;
+
+            const vars = {};
+            const needed = new Set(Object.keys(t.vars || {}));
+            (t.command.match(/\${([^}]+)}/g) || []).forEach(m => needed.add(m.slice(2, -1)));
+
+            for (const k of needed) {
+                const v = prompt(`${k}:`, t.vars?.[k] || '');
+                if (v === null) return;
+                vars[k] = v;
+            }
+
+            await fetchAPI('/api/instances', 'POST', { action: 'start', template: id, name, vars });
+            await loadInstances();
+            setTab('instances');
+        }
+
+        async function addAsTemplate(name) {
+            const i = state.instances[name];
+            if (!i) return;
+            const id = prompt('Template ID:', i.name + '-template');
+            if (!id) return;
+
+            const t = {
+                id,
+                label: 'Template from ' + i.name,
+                command: i.command,
+                resources: Object.keys(i.resources || {}),
+                vars: i.vars || {}
+            };
+            await fetchAPI('/api/templates', 'POST', t);
+            loadTemplates();
+        }
+
+        async function monitorProcess(pid, cmd) {
+            const name = prompt('Name:', cmd.split(' ')[0].split('/').pop() + '-' + pid);
+            if (name) {
+                await fetchAPI('/api/monitor', 'POST', { pid, name });
+                await loadInstances();
+                setTab('instances');
+            }
+        }
+
+        function addTemplate() {
+            const json = prompt('Template JSON:');
+            if (json) fetchAPI('/api/templates', 'POST', JSON.parse(json)).then(loadTemplates);
+        }
+
+        function addResourceType() {
+            const name = prompt('Type Name:');
+            if (!name) return;
+            const check = prompt('Check command (optional):');
+            const counter = confirm('Is counter?');
+            let start = 0, end = 0;
+            if (counter) {
+                start = parseInt(prompt('Start:')) || 0;
+                end = parseInt(prompt('End:')) || 0;
+            }
+            fetchAPI('/api/resource-types', 'POST', { name, check, counter, start, end }).then(loadResourceTypes);
+        }
+
+        // Utils
+        function formatTime(s) {
+            if (!s) return '-';
+            if (s < 60) return s.toFixed(1) + 's';
+            return (s / 60).toFixed(1) + 'm';
+        }
+        function escape(s) { return s.replace(/'/g, "\\'"); }
+
+        // Loop
+        setInterval(() => {
+            const now = Date.now();
+            const auto = document.getElementById('auto-refresh').checked;
+            const visible = !document.hidden;
+
+            // Update Counters
+            ['instances', 'discover'].forEach(key => {
+                const last = state.lastUpdate[key];
+                const elDot = document.getElementById(`status-${key}`);
+                const elText = document.getElementById(`text-${key}`);
+                if (!elDot) return;
+
+                if (last === 0) {
+                    elDot.className = 'status-dot stale';
+                    elText.textContent = 'Not loaded';
+                } else {
+                    const age = (now - last) / 1000;
+                    if (age < 6) {
+                        elDot.className = 'status-dot live';
+                        elText.textContent = `Live (${age.toFixed(0)}s)`;
+                    } else {
+                        elDot.className = 'status-dot stale';
+                        elText.textContent = `Stale (${age.toFixed(0)}s)`;
+                    }
+                }
+            });
+
+            if (state.activeTab === 'instances' && state.lastUpdate.instances > 0) {
+                // Re-render for stale badge update
+                // Only if we are crossing the boundary? 
+                // For simplicity, we can re-render if we haven't typed a filter recently?
+                // Actually, re-rendering every second is fine for this app size.
+                if (!state.filter) renderInstances(); // Avoid interrupting typing? No, typing is handled by keydown.
+                // But re-rendering might lose focus or selection? We don't have inputs in cards.
+                renderInstances();
+            }
+
+            // Auto Refresh
+            if (auto && visible) {
+                if (state.activeTab === 'instances' && (now - state.lastUpdate.instances > 1000)) loadInstances();
+                if (state.activeTab === 'discover' && (now - state.lastUpdate.discover > 2000)) discoverProcesses();
+            }
+        }, 1000);
+
+        // Init
+        loadInstances();
+    </script>
+</body>
+
+</html>

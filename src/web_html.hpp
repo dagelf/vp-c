@@ -1,3 +1,9 @@
+#ifndef VP_WEB_HTML_HPP
+#define VP_WEB_HTML_HPP
+
+namespace vp {
+
+const char* const EMBEDDED_WEB_HTML = R"WEBHTML(
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1733,4 +1739,8 @@
     </script>
 </body>
 
-</html>
+</html>)WEBHTML";
+
+} // namespace vp
+
+#endif // VP_WEB_HTML_HPP
