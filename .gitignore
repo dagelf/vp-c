@@ -3,6 +3,10 @@
 vp
 vp_test
 build/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+cmake_install.cmake
 
 # IDE files
 .vscode/
@@ -13,3 +17,7 @@ build/
 # State files
 .vibeprocess/
 .config/vp/
+
+# Temporary files
+Testing/
+*.log

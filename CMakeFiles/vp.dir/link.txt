@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -pthread -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/vp.dir/link.d CMakeFiles/vp.dir/src/main.cpp.o CMakeFiles/vp.dir/src/state.cpp.o CMakeFiles/vp.dir/src/process.cpp.o CMakeFiles/vp.dir/src/resource.cpp.o CMakeFiles/vp.dir/src/procutil.cpp.o CMakeFiles/vp.dir/src/api.cpp.o -o vp  -lpthread
