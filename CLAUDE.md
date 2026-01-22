@@ -18,7 +18,7 @@ Interact with anything? Just add an action.
 1. **Zero Hardcoded Assumptions** - Resources aren't hardcoded
 2. **Maximum Flexibility** - Add ANY resource type at runtime
 3. **Validation via Shell** - Use any installed tool
-4. **Brutally Simple** - 6 files, ~500 lines
+4. **Brutally Simple** - minimal LoC
 5. **Firmware-Style** - Pure primitives, users configure behavior
 6. **Debuggable** - Human-readable JSON state
 7. **Extensible Without Code Changes** - Add types via CLI
@@ -27,7 +27,6 @@ Interact with anything? Just add an action.
 ## Design Constraints
 
 **Maintain:**
-- Minimal LoC (currently ~2400 lines)
 - Single binary, no dependencies beyond stdlib
 - All state in one JSON file
 - Zero resource type assumptions
@@ -41,24 +40,36 @@ Interact with anything? Just add an action.
 
 ## Architecture
 
-C++ implementation (~2400 lines):
+C++ implementation:
 
 ```
-src/main.cpp      CLI entrypoint, command routing
-src/state.cpp     JSON persistence (nlohmann/json)
-src/process.cpp   Lifecycle: start/stop/restart/discover/monitor
-src/resource.cpp  Generic allocation: type:value pairs + check commands
 src/api.cpp       HTTP API + embedded web UI
+src/process.cpp   Lifecycle: start/stop/restart/discover/monitor
+src/main.cpp      CLI entrypoint, command routing
 src/procutil.cpp  /proc parsing, port discovery, parent chains
+src/state.cpp     JSON persistence (nlohmann/json)
+src/resource.cpp  Generic allocation: type:value pairs + check commands
 web.html          Single-page UI
 ```
+
+## Line counts
+
+$ printf '%s\0' src/*.cpp | grep -Ezv '(json|test)' | xargs -0 wc -l | sort -nr
+  3143 total
+   874 src/api.cpp
+   799 src/process.cpp
+   491 src/main.cpp
+   419 src/procutil.cpp
+   411 src/state.cpp
+   149 src/resource.cpp
 
 ## Key Concepts
 
 - **Template**: Process blueprint (command + resource requirements + default vars)
-- **Instance**: Running process from template (name + PID + status + allocated resources)
+- **Instance**: Process running from template (name + PID + status + allocated resources)
 - **ResourceType**: User-defined with shell check command (counter flag for auto-increment)
-- **Resource**: Allocated type:value pair (tcpport:3000, gpu:0, license:@server, etc)
+- **Resource**: ResourceType in use as type:value pair (eg. tcpport:3000, gpu:0, license:@server, etc)
+- **Actions**: shell commands or Url strings to interact with the process, aka Launcher
 
 ## Resource System
 
@@ -67,27 +78,27 @@ web.html          Single-page UI
 tcpport     -> nc -z localhost ${value}  # counter: 3000-9999
 vncport     -> nc -z localhost ${value}  # counter: 5900-5999
 dbfile      -> test -f ${value}
-workdir     -> (no check, informational)
+workdir     # no check, informational
 
 # Add custom types at runtime
 vp resource-type add gpu --check='nvidia-smi -L | grep GPU-${value}'
 vp resource-type add license --check='lmutil lmstat -c ${value} | grep UP'
 ```
 
-Shell command exits 0 = in-use (unavailable), exits non-zero = free (available).
+Shell command exits 0 = in-use (unavailable), exits non-zero = free (available for use).
 
 ## Process Discovery
 
 Automatic matching: On every refresh, scan /proc to:
 1. Update CPU time for running instances
 2. Match stopped instances to running processes (by name + port)
-3. Discover unmanaged processes (ports only by default)
+3. Discover unmanaged processes (filters available, eg only processes listening on TCP ports)
 
-Monitor mode: Import existing process as read-only instance (managed=false).
+Monitor mode: Import existing process as read-only instance (managed=false). # TODO check what this means
 
 ## State File
 
-`~/.vibeprocess/state.json` contains everything (README previously referenced `~/.config/vp/state.json`; path should be unified):
+`~/.vibeprocess/state.json` contains everything 
 - instances: name -> Instance
 - templates: id -> Template
 - resources: type:value -> Resource
@@ -96,22 +107,19 @@ Monitor mode: Import existing process as read-only instance (managed=false).
 
 Hot-reload via inotify when file changes externally.
 
-**Potential unfixed issues:**
-- State path mismatch between code (`~/.vibeprocess`) and earlier docs (`~/.config/vp`)
-- Config hot-reload (inotify) - setup exists but watcher thread not implemented
-- Race conditions: state maps/counters mutated across threads without consistent locking
-- Process group kill assumes pgid==pid and can overreach if PIDs are reused
-- Discovery/matching is heuristic (basename + optional ports/CWD) and can mis-associate processes
-- Tests touch real state dir and rely on host /proc; no HTTP/web integration tests yet
-- Minor: Parent chain basename extraction edge case
+**Potential unfixed issues:** 
+- TODO Check Config hot-reload (inotify) - setup exists but watcher thread not implemented
+- TODO Check Race conditions: state maps/counters mutated across threads without consistent locking
+- TODO Check Process group kill assumes pgid==pid and can overreach if PIDs are reused
+- TODO Check Discovery/matching is heuristic (basename + optional ports/CWD) and can mis-associate processes
+- TODO Check Tests touch real state dir and rely on host /proc; no HTTP/web integration tests yet
+- TODO Check Minor: Parent chain basename extraction edge case
+- TODO 17/17 unit-style tests passing (CLI/process/resource/state/template add/delete; no API/web coverage)
+- TODO Manually tested, automate tests: template/resource-type management works
+- TODO State persistence verified working, automate tests
+- TODO Process lifecycle verified working, automate tests
 
-**Testing:**
-- 17/17 unit-style tests passing (CLI/process/resource/state/template add/delete; no API/web coverage)
-- Manual testing: template/resource-type management works
-- State persistence verified working
-- Process lifecycle verified working
-
-## Security Considerations 
+## Accepted Security Considerations, review periodically
 - Commands/actions/resource-checks are executed via shell with full user privileges
 - No isolation: processes inherit environment/stdio; no seccomp/cgroups/uid drop
 - Mitigation today: run behind a trusted reverse proxy, restrict bind address, or sandbox the binary
@@ -119,9 +127,9 @@ Hot-reload via inotify when file changes externally.
 ## Roadmap
 
 ### Short-term
-- [ ] if launcher is a url, just open it in a new window
-- [ ] store the launch template in the instance to that conflicting resources can be reallocated
-- [ ] add make option to build in a specified container with musl / older libc (debian 9/10) 
+- [ ] if launcher is a url, just provide it as an href to open it in a new window
+- [ ] store the launcher templates in the instance so that conflicting resources can be reallocated
+- [ ] add make option to build in a specified container with musl / older libc (debian 9/10, other distros) 
 - [ ] Implement file watching thread
 - [ ] Better error messages (resource conflicts, validation failures)
 - [ ] Comprehensive integration tests (CLI + HTTP + web)
